@@ -1,4 +1,64 @@
-import type { Settings, City, Counter } from '../types';
+import type { Settings, City, Counter, Bill } from '../types';
+
+/**
+ * Maps counter name to a letter prefix:
+ * Counter 1 -> A
+ * Counter 2 -> B
+ * Counter 3 -> C
+ * Counter 4 -> D
+ * and so on.
+ */
+export function getCounterPrefix(counterName: string, counters?: Counter[]): string {
+  const numMatch = counterName.match(/\d+/);
+  if (numMatch) {
+    const num = parseInt(numMatch[0], 10);
+    if (num >= 1 && num <= 26) {
+      return String.fromCharCode(65 + num - 1);
+    }
+  }
+
+  if (counters && counters.length > 0) {
+    const idx = counters.findIndex(
+      (c) => c.name.trim().toLowerCase() === counterName.trim().toLowerCase()
+    );
+    if (idx >= 0 && idx < 26) {
+      return String.fromCharCode(65 + idx);
+    }
+  }
+
+  return 'A';
+}
+
+/**
+ * Generates next sequential receipt number per counter:
+ * Counter 1 -> A-01, A-02, ...
+ * Counter 2 -> B-01, B-02, ...
+ * Counter 3 -> C-01, C-02, ...
+ */
+export function generateNextReceiptNumber(
+  counterName: string,
+  existingBills: Bill[],
+  counters?: Counter[]
+): string {
+  const prefix = getCounterPrefix(counterName, counters);
+  const regex = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+
+  let maxSeq = 0;
+  for (const b of existingBills) {
+    if (b.receipt) {
+      const match = b.receipt.match(regex);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (!isNaN(val) && val > maxSeq) {
+          maxSeq = val;
+        }
+      }
+    }
+  }
+
+  const nextSeq = maxSeq + 1;
+  return `${prefix}-${String(nextSeq).padStart(2, '0')}`;
+}
 
 export const INITIAL_CITIES: City[] = [
   'Hyderabad',

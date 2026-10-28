@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Minus, Trash2, Printer, Search, Sparkles, Check, AlertCircle } from 'lucide-react';
 import type { Bill, City, PrinterConfig, Settings, UserRole } from '../types';
-import { activeSlot, billingLocked, fmtTime, money, today } from '../utils/helpers';
+import { activeSlot, billingLocked, generateNextReceiptNumber, money, today } from '../utils/helpers';
 import { printBill } from '../utils/printer';
 
 interface BillingPageProps {
@@ -159,9 +159,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     const dateStr = today();
     const counterToUse = role === 'admin' ? selectedCounter : currentCounter;
 
-    // Sequential receipt number
-    const seq = Math.floor(100000 + Math.random() * 900000);
-    const receiptNo = `LD-${seq}`;
+    // Sequential receipt number per counter: Counter 1 -> A-01, Counter 2 -> B-01, etc.
+    const receiptNo = generateNextReceiptNumber(counterToUse, bills, settings.counters);
 
     const newBill: Bill = {
       receipt: receiptNo,
