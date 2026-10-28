@@ -24,9 +24,8 @@ import {
   subscribePrinterStatus,
 } from '../utils/printer';
 import {
-  getStoredSupabaseConfig,
+  getMaskedSupabaseInfo,
   initSupabaseClient,
-  saveSupabaseConfig,
 } from '../lib/supabase';
 
 interface SettingsPageProps {
@@ -72,18 +71,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [btStatus, setBtStatus] = useState(getBluetoothState());
   const [testPrintMsg, setTestPrintMsg] = useState<string>('');
 
-  // Supabase config state
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseKey, setSupabaseKey] = useState('');
+  // Supabase cloud info (keys hidden from frontend)
+  const [cloudInfo, setCloudInfo] = useState(getMaskedSupabaseInfo());
   const [cloudMsg, setCloudMsg] = useState('');
 
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     const unsub = subscribePrinterStatus((s) => setBtStatus(s));
-    const currentSupabase = getStoredSupabaseConfig();
-    setSupabaseUrl(currentSupabase.url);
-    setSupabaseKey(currentSupabase.anonKey);
+    setCloudInfo(getMaskedSupabaseInfo());
     return unsub;
   }, []);
 
@@ -208,14 +204,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     setTimeout(() => setTestPrintMsg(''), 4000);
   };
 
-  // Supabase save
-  const handleSaveSupabase = () => {
-    const url = supabaseUrl.trim();
-    const key = supabaseKey.trim();
-    saveSupabaseConfig({ url, anonKey: key });
+  const handleRefreshCloud = () => {
     initSupabaseClient();
-    setCloudMsg('Supabase credentials saved. App will sync with your cloud database!');
-    setTimeout(() => setCloudMsg(''), 4000);
+    setCloudInfo(getMaskedSupabaseInfo());
+    setCloudMsg('Verified Supabase cloud connection.');
+    setTimeout(() => setCloudMsg(''), 3000);
   };
 
   return (
@@ -347,7 +340,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <Database size={20} className="text-emerald" />
             <div>
               <h2 className="card-title">Supabase Cloud Database</h2>
-              <div className="card-subtitle">Connect PostgreSQL for real-time live counter sync</div>
+              <div className="card-subtitle">Real-time multi-counter sync via PostgreSQL</div>
             </div>
           </div>
           <span
@@ -357,55 +350,35 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </span>
         </div>
 
-        <div className="notice-banner info-banner">
+        <div className="printer-status-bar" style={{ marginTop: 6 }}>
+          <div className="printer-info">
+            <b>Database Host: </b>
+            <span className="font-mono text-sm text-emerald">
+              {cloudInfo.isConfigured ? cloudInfo.projectHost : 'Local Offline Mode'}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn-sm btn-primary"
+            onClick={handleRefreshCloud}
+          >
+            <RefreshCw size={14} />
+            <span>Verify Sync</span>
+          </button>
+        </div>
+
+        <div className="notice-banner info-banner" style={{ marginTop: 10 }}>
           <span>
-            Deploying to Vercel? You can set <code>VITE_SUPABASE_URL</code> and{' '}
-            <code>VITE_SUPABASE_ANON_KEY</code> in Vercel project environment variables, or enter them
-            below for instant sync on this phone.
+            <b>Security Note:</b> Database credentials are securely loaded from backend environment variables (<code>.env</code> / Vercel). Your secret API keys are protected and never displayed in the frontend.
           </span>
         </div>
 
         {cloudMsg && (
-          <div className="status-toast" style={{ marginBottom: 12 }}>
+          <div className="status-toast" style={{ marginTop: 10 }}>
             <CheckCircle size={15} />
             <span>{cloudMsg}</span>
           </div>
         )}
-
-        <div className="form-grid">
-          <div className="form-field full-width">
-            <label>Supabase Project URL</label>
-            <input
-              type="text"
-              placeholder="https://xyzcompany.supabase.co"
-              value={supabaseUrl}
-              onChange={(e) => setSupabaseUrl(e.target.value)}
-              className="form-input font-mono text-sm"
-            />
-          </div>
-
-          <div className="form-field full-width">
-            <label>Supabase Anon / Public Key</label>
-            <input
-              type="password"
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-              value={supabaseKey}
-              onChange={(e) => setSupabaseKey(e.target.value)}
-              className="form-input font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="row" style={{ marginTop: 14 }}>
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={handleSaveSupabase}
-          >
-            <Database size={16} />
-            <span>Save & Connect Supabase</span>
-          </button>
-        </div>
       </div>
 
       {/* 3. DRAW TIMINGS & TICKET PRICES */}

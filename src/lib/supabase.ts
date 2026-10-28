@@ -9,6 +9,14 @@ export interface SupabaseConfig {
 }
 
 export function getStoredSupabaseConfig(): SupabaseConfig {
+  // 1. Environment variables take highest priority (secure server / .env / Vercel)
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  if (envUrl && envKey) {
+    return { url: envUrl, anonKey: envKey };
+  }
+
+  // 2. Fallback to localStorage if configured
   try {
     const raw = localStorage.getItem(SUPABASE_CONFIG_KEY);
     if (raw) {
@@ -19,11 +27,18 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
     // ignore
   }
 
-  // Fallback to Vite env variables if set
-  const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  return { url: '', anonKey: '' };
+}
 
-  return { url: envUrl, anonKey: envKey };
+export function getMaskedSupabaseInfo(): { isConfigured: boolean; projectHost: string } {
+  const config = getStoredSupabaseConfig();
+  if (!config.url) return { isConfigured: false, projectHost: 'Not Configured' };
+  try {
+    const u = new URL(config.url);
+    return { isConfigured: true, projectHost: u.hostname };
+  } catch {
+    return { isConfigured: true, projectHost: 'Configured' };
+  }
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig) {
