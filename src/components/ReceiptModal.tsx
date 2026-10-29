@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Bluetooth, Printer, X, Check, Copy } from 'lucide-react';
-import type { Bill, PrinterConfig } from '../types';
+import { Bluetooth, Printer, X, Check, Copy, ShieldAlert } from 'lucide-react';
+import type { Bill, PrinterConfig, UserRole } from '../types';
 import { buildReceiptPlainText, printBill, printTestReceipt } from '../utils/printer';
 
 interface ReceiptModalProps {
@@ -8,6 +8,8 @@ interface ReceiptModalProps {
   onClose: () => void;
   printerConfig: PrinterConfig;
   cityMap: Record<string, string>;
+  role?: UserRole;
+  currentCounter?: string;
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
@@ -15,12 +17,49 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   onClose,
   printerConfig,
   cityMap,
+  role,
+  currentCounter,
 }) => {
   const [printStatus, setPrintStatus] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
 
   if (!bill) return null;
+
+  // Strict access check for counter staff
+  const isUnauthorized =
+    role === 'counter' &&
+    currentCounter &&
+    bill.counter?.trim().toLowerCase() !== currentCounter?.trim().toLowerCase();
+
+  if (isUnauthorized) {
+    return (
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal-card receipt-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <div className="flex-row items-center gap-2">
+              <ShieldAlert size={20} className="text-rose" />
+              <h2 className="modal-title">Receipt Access Restricted</h2>
+            </div>
+            <button type="button" className="btn-close" onClick={onClose}>
+              <X size={20} />
+            </button>
+          </div>
+          <div style={{ padding: '20px 0', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+              This receipt was created by <b>{bill.counter}</b>.
+            </p>
+            <p style={{ color: 'var(--rose)', fontSize: 13, marginTop: 6 }}>
+              You are logged in as <b>{currentCounter}</b> and can only view or print receipts from your counter.
+            </p>
+          </div>
+          <button type="button" className="btn-secondary full-width" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const plainText = buildReceiptPlainText(bill, printerConfig, cityMap);
 

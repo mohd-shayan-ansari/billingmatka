@@ -99,8 +99,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     return map;
   }, [cities]);
 
-  // Master list of all counters
+  // Scope bills by user role: Counter staff can ONLY see sales & receipts from their own counter
+  const scopedBills = useMemo(() => {
+    if (role === 'admin') return bills;
+    return bills.filter(
+      (b) => b.counter?.trim().toLowerCase() === currentCounter?.trim().toLowerCase()
+    );
+  }, [bills, role, currentCounter]);
+
+  // Master list of visible counters: For counter role, only their own counter is listed
   const countersList = useMemo(() => {
+    if (role === 'counter') return [currentCounter];
     const set = new Set<string>();
     (settings.counters || []).forEach((c) => set.add(c.name));
     bills.forEach((b) => {
@@ -108,7 +117,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     });
     const arr = Array.from(set);
     return arr.length > 0 ? arr : ['Counter 1', 'Counter 2', 'Counter 3'];
-  }, [settings.counters, bills]);
+  }, [settings.counters, bills, role, currentCounter]);
 
   // Slots for the settings
   const allSlots = useMemo(() => timeSlots(settings), [settings]);
@@ -142,10 +151,10 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     }
   }, [liveSlot, isLocked, now]);
 
-  // Bills filtered by selectedDate
+  // Bills filtered by selectedDate from scopedBills
   const dateBills = useMemo(() => {
-    return bills.filter((b) => b.date === selectedDate);
-  }, [bills, selectedDate]);
+    return scopedBills.filter((b) => b.date === selectedDate);
+  }, [scopedBills, selectedDate]);
 
   // Bills filtered by selectedSlot
   const slotBills = useMemo(() => {
@@ -243,17 +252,33 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     };
   }, [dateBills, countersList]);
 
-  // Results declared for selected slot
+  // Results declared for selected slot (scoped to current counter winners if counter role)
   const slotDeclaredResult = useMemo(() => {
-    return results.find((r) => r.date === selectedDate && r.slot === selectedSlot);
-  }, [results, selectedDate, selectedSlot]);
+    const res = results.find((r) => r.date === selectedDate && r.slot === selectedSlot);
+    if (!res) return null;
+    if (role === 'admin') return res;
+    const myWinners = (res.winners || []).filter(
+      (w) => w.counter?.trim().toLowerCase() === currentCounter?.trim().toLowerCase()
+    );
+    return {
+      ...res,
+      winners: myWinners,
+      totalPrize: myWinners.reduce((sum, w) => sum + (w.prize || 0), 0),
+    };
+  }, [results, selectedDate, selectedSlot, role, currentCounter]);
 
-  // Day total prize payouts
+  // Day total prize payouts (scoped to counter tickets if counter role)
   const dayPrizes = useMemo(() => {
     return results
       .filter((r) => r.date === selectedDate)
-      .reduce((sum, r) => sum + (r.totalPrize || 0), 0);
-  }, [results, selectedDate]);
+      .reduce((sum, r) => {
+        if (role === 'admin') return sum + (r.totalPrize || 0);
+        const myWinners = (r.winners || []).filter(
+          (w) => w.counter?.trim().toLowerCase() === currentCounter?.trim().toLowerCase()
+        );
+        return sum + myWinners.reduce((wSum, w) => wSum + (w.prize || 0), 0);
+      }, 0);
+  }, [results, selectedDate, role, currentCounter]);
 
   // Matrix view controls (This slot vs All day)
   const [matrixScope, setMatrixScope] = useState<'slot' | 'day'>('slot');
@@ -484,7 +509,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           <div>
             <div className="spotlight-badge">
               <BarChart3 size={14} />
-              <span>PER-COUNTER SALE BREAKDOWN</span>
+              <span>{role === 'counter' ? `YOUR SALES PERFORMANCE (${currentCounter})` : 'PER-COUNTER SALE BREAKDOWN'}</span>
             </div>
             <h2 className="spotlight-title">
               Draw Slot: <b>{fmtTime(selectedSlot)}</b>
@@ -496,7 +521,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
           </div>
 
           <div className="spotlight-metrics-total">
-            <span className="total-label">Slot Revenue</span>
+            <span className="total-label">{role === 'counter' ? 'Your Slot Revenue' : 'Slot Revenue'}</span>
             <b className="total-val">{money(slotStats.totalSales)}</b>
             <span className="total-sub">
               {slotStats.totalBills} bills · {slotStats.totalUnits} units
@@ -520,9 +545,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                     </div>
                     <b className="counter-name">{c.counter}</b>
                   </div>
-                  <span className="counter-share-pill">
-                    {c.sharePct.toFixed(1)}% Share
-                  </span>
+                  {role === 'admin' && (
+                    <span className="counter-share-pill">
+                      {c.sharePct.toFixed(1)}% Share
+                    </span>
+                  )}
                 </div>
 
                 <div className="counter-amount-hero">
@@ -530,12 +557,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 </div>
 
                 {/* Visual Share Bar */}
-                <div className="counter-progress-track">
-                  <div
-                    className="counter-progress-fill"
-                    style={{ width: `${Math.max(2, c.sharePct)}%` }}
-                  />
-                </div>
+                {role === 'admin' && (
+                  <div className="counter-progress-track">
+                    <div
+                      className="counter-progress-fill"
+                      style={{ width: `${Math.max(2, c.sharePct)}%` }}
+                    />
+                  </div>
+                )}
 
                 <div className="counter-stats-footer">
                   <span>{c.billsCount} bills</span>
@@ -552,7 +581,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         {slotStats.totalBills === 0 && (
           <div className="empty-slot-state">
             <AlertCircle size={18} className="text-muted" />
-            <span>No sales recorded yet for slot {fmtTime(selectedSlot)} on this date.</span>
+            <span>
+              {role === 'counter'
+                ? `No sales recorded by ${currentCounter} for slot ${fmtTime(selectedSlot)} on this date.`
+                : `No sales recorded yet for slot ${fmtTime(selectedSlot)} on this date.`}
+            </span>
           </div>
         )}
 
@@ -566,13 +599,14 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                   Declared Winner: #{slotDeclaredResult.number} ({slotDeclaredResult.type === 2 ? '00–99' : '0–9'})
                 </b>
                 <div className="text-xs text-muted">
-                  City: {cityMap[slotDeclaredResult.cityId] || slotDeclaredResult.cityName} · Total Prizes:{' '}
+                  City: {cityMap[slotDeclaredResult.cityId] || slotDeclaredResult.cityName} ·{' '}
+                  {role === 'counter' ? 'Your Customer Prizes: ' : 'Total Prizes: '}
                   <b>{money(slotDeclaredResult.totalPrize)}</b>
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-xs text-muted">Net Slot Margin:</span>
+              <span className="text-xs text-muted">{role === 'counter' ? 'Your Net Balance:' : 'Net Slot Margin:'}</span>
               <b
                 className={`block text-sm ${
                   slotStats.totalSales - slotDeclaredResult.totalPrize >= 0 ? 'text-emerald' : 'text-rose'
@@ -585,13 +619,17 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         )}
       </div>
 
-      {/* 5. Comprehensive Full-Day Slot vs Counter Summary Table */}
+      {/* 5. Comprehensive Full-Day Slot Summary Table */}
       <div className="card slot-table-card">
         <div className="card-header-row">
           <div>
-            <h2 className="card-title">Full Day Slot vs Counter Matrix</h2>
+            <h2 className="card-title">
+              {role === 'counter' ? `Slot Sales Summary for ${currentCounter}` : 'Full Day Slot vs Counter Matrix'}
+            </h2>
             <div className="card-subtitle">
-              Click any time slot row to inspect its live counter breakdown
+              {role === 'counter'
+                ? `Your sales and ticket volume across each draw slot`
+                : 'Click any time slot row to inspect its live counter breakdown'}
             </div>
           </div>
           <span className="badge-count">{allSlots.length} Slots</span>
@@ -602,10 +640,19 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <thead>
               <tr>
                 <th>Time Slot</th>
-                {countersList.map((c) => (
-                  <th key={c} className="text-right">{c}</th>
-                ))}
-                <th className="text-right">Total Slot</th>
+                {role === 'admin' ? (
+                  <>
+                    {countersList.map((c) => (
+                      <th key={c} className="text-right">{c}</th>
+                    ))}
+                    <th className="text-right">Total Slot</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="text-right">Your Sales ({currentCounter})</th>
+                    <th className="text-right">Your Units</th>
+                  </>
+                )}
                 <th className="text-center">Bills</th>
                 <th className="text-center">Status</th>
               </tr>
@@ -628,17 +675,30 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                         {isLive && <span className="live-dot-mini" />}
                       </div>
                     </td>
-                    {countersList.map((c) => {
-                      const amt = row.perCounter[c] || 0;
-                      return (
-                        <td key={c} className="text-right cell-counter-val">
-                          {amt > 0 ? money(amt) : <span className="text-muted">—</span>}
+                    {role === 'admin' ? (
+                      <>
+                        {countersList.map((c) => {
+                          const amt = row.perCounter[c] || 0;
+                          return (
+                            <td key={c} className="text-right cell-counter-val">
+                              {amt > 0 ? money(amt) : <span className="text-muted">—</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="text-right cell-total-amt">
+                          <b>{row.slotTotal > 0 ? money(row.slotTotal) : '—'}</b>
                         </td>
-                      );
-                    })}
-                    <td className="text-right cell-total-amt">
-                      <b>{row.slotTotal > 0 ? money(row.slotTotal) : '—'}</b>
-                    </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="text-right cell-total-amt font-bold text-emerald">
+                          {row.slotTotal > 0 ? money(row.slotTotal) : <span className="text-muted">—</span>}
+                        </td>
+                        <td className="text-right cell-counter-val">
+                          {row.slotUnits > 0 ? row.slotUnits : <span className="text-muted">—</span>}
+                        </td>
+                      </>
+                    )}
                     <td className="text-center cell-bills-count">
                       {row.billsCount > 0 ? row.billsCount : '—'}
                     </td>
@@ -654,14 +714,27 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
             <tfoot>
               <tr className="table-total-row">
                 <td><b>Grand Total</b></td>
-                {countersList.map((c) => (
-                  <td key={c} className="text-right font-bold">
-                    {money(dailyTotals.perCounterTotals[c] || 0)}
-                  </td>
-                ))}
-                <td className="text-right font-bold text-emerald">
-                  {money(dailyTotals.totalSales)}
-                </td>
+                {role === 'admin' ? (
+                  <>
+                    {countersList.map((c) => (
+                      <td key={c} className="text-right font-bold">
+                        {money(dailyTotals.perCounterTotals[c] || 0)}
+                      </td>
+                    ))}
+                    <td className="text-right font-bold text-emerald">
+                      {money(dailyTotals.totalSales)}
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="text-right font-bold text-emerald">
+                      {money(dailyTotals.totalSales)}
+                    </td>
+                    <td className="text-right font-bold">
+                      {dailyTotals.totalUnits}
+                    </td>
+                  </>
+                )}
                 <td className="text-center font-bold">
                   {dailyTotals.totalBills}
                 </td>
@@ -679,29 +752,39 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         <div className="kpi-card sales-kpi">
           <div className="kpi-header">
             <TrendingUp size={16} className="text-emerald" />
-            <span className="kpi-label">{formatDateDisplay(selectedDate, todayStr)} Sales</span>
+            <span className="kpi-label">
+              {role === 'counter'
+                ? `Your ${formatDateDisplay(selectedDate, todayStr)} Sales`
+                : `${formatDateDisplay(selectedDate, todayStr)} Sales`}
+            </span>
           </div>
           <div className="kpi-value text-emerald">{money(dailyTotals.totalSales)}</div>
-          <div className="kpi-footer">{dailyTotals.totalBills} total bills generated</div>
+          <div className="kpi-footer">
+            {dailyTotals.totalBills} {role === 'counter' ? 'bills issued by you' : 'total bills generated'}
+          </div>
         </div>
 
         <div className="kpi-card bills-kpi">
           <div className="kpi-header">
             <Receipt size={16} className="text-blue" />
-            <span className="kpi-label">Tickets / Units</span>
+            <span className="kpi-label">{role === 'counter' ? 'Your Tickets / Units' : 'Tickets / Units'}</span>
           </div>
           <div className="kpi-value">{dailyTotals.totalUnits}</div>
-          <div className="kpi-footer">Across {countersList.length} billing counters</div>
+          <div className="kpi-footer">
+            {role === 'counter' ? `Terminal: ${currentCounter}` : `Across ${countersList.length} billing counters`}
+          </div>
         </div>
 
         <div className="kpi-card prize-kpi">
           <div className="kpi-header">
             <Trophy size={16} className="text-amber" />
-            <span className="kpi-label">Winning Payouts</span>
+            <span className="kpi-label">{role === 'counter' ? 'Your Winning Payouts' : 'Winning Payouts'}</span>
           </div>
           <div className="kpi-value text-amber">{money(dayPrizes)}</div>
           <div className="kpi-footer">
-            Net: {money(dailyTotals.totalSales - dayPrizes)}
+            {role === 'counter'
+              ? 'For tickets issued at your counter'
+              : `Net: ${money(dailyTotals.totalSales - dayPrizes)}`}
           </div>
         </div>
 
@@ -811,8 +894,12 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       <div className="card table-card">
         <div className="card-header-row">
           <div>
-            <h2 className="card-title">Bills for Slot {fmtTime(selectedSlot)}</h2>
-            <div className="card-subtitle">{slotBills.length} bills in this time slot</div>
+            <h2 className="card-title">
+              {role === 'counter' ? `Your Receipts for Slot ${fmtTime(selectedSlot)}` : `Bills for Slot ${fmtTime(selectedSlot)}`}
+            </h2>
+            <div className="card-subtitle">
+              {role === 'counter' ? `Receipts issued by ${currentCounter} in this slot` : `${slotBills.length} bills in this time slot`}
+            </div>
           </div>
           <span className="badge-count">{slotBills.length}</span>
         </div>

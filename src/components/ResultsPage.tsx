@@ -130,11 +130,13 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
     );
   };
 
-  // Filter results for counter role
+  // Filter results for counter role: only show winners and prizes belonging to current counter
   const displayResults = useMemo(() => {
     if (role === 'admin') return results;
     return results.map((r) => {
-      const counterWinners = (r.winners || []).filter((w) => w.counter === currentCounter);
+      const counterWinners = (r.winners || []).filter(
+        (w) => w.counter?.trim().toLowerCase() === currentCounter?.trim().toLowerCase()
+      );
       return {
         ...r,
         winners: counterWinners,
@@ -142,6 +144,15 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       };
     });
   }, [results, role, currentCounter]);
+
+  // Aggregate total winning prize for counter
+  const counterTotalPrize = useMemo(() => {
+    return displayResults.reduce((s, r) => s + (r.totalPrize || 0), 0);
+  }, [displayResults]);
+
+  const counterWinningBillsCount = useMemo(() => {
+    return displayResults.reduce((s, r) => s + (r.winners?.length || 0), 0);
+  }, [displayResults]);
 
   return (
     <div className="results-page">
@@ -252,21 +263,36 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           </button>
         </div>
       ) : (
-        <div className="card info-banner-card">
+        <div className="card info-banner-card" style={{ marginBottom: 14 }}>
           <div className="card-header-row">
-            <h2 className="card-title">Draw Results & Winning Prizes</h2>
-            <Trophy size={20} className="text-amber" />
+            <div className="flex-row items-center gap-2">
+              <Trophy size={20} className="text-amber" />
+              <div>
+                <h2 className="card-title">Draw Results & Winning Prizes</h2>
+                <div className="card-subtitle">
+                  Showing winning prizes strictly for <b>{currentCounter}</b>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs text-muted block">Your Total Payouts:</span>
+              <b className="text-lg text-amber">{money(counterTotalPrize)}</b>
+            </div>
           </div>
-          <p className="card-subtitle">
-            Showing results and winning payouts for <b>{currentCounter}</b>. Only Admin can declare new draw numbers.
-          </p>
+          <div style={{ marginTop: 8, display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+            <span>🏆 Winning Bills: <b>{counterWinningBillsCount}</b></span>
+            <span>•</span>
+            <span>Terminal: <b>{currentCounter}</b></span>
+          </div>
         </div>
       )}
 
       {/* Declared Results History */}
       <div className="card table-card">
         <div className="card-header-row">
-          <h2 className="card-title">Declared Results History</h2>
+          <h2 className="card-title">
+            {role === 'counter' ? `Winning Draws for ${currentCounter}` : 'Declared Results History'}
+          </h2>
           <span className="badge-count">{displayResults.length}</span>
         </div>
 
@@ -288,7 +314,9 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                   </div>
                   <div className="result-prize-box">
                     <div className="result-total-prize">{money(r.totalPrize)}</div>
-                    <div className="result-rate">{money(r.prizePerUnit)}/unit</div>
+                    <div className="result-rate">
+                      {role === 'counter' ? 'Your Prize' : `${money(r.prizePerUnit)}/unit`}
+                    </div>
                   </div>
                 </div>
 
@@ -297,13 +325,17 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                   <div className="result-winners-box">
                     <div className="winners-title">
                       <Users size={12} />
-                      <span>{r.winners.length} Winning Bill(s):</span>
+                      <span>
+                        {role === 'counter'
+                          ? `${r.winners.length} Winning Bill(s) from ${currentCounter}:`
+                          : `${r.winners.length} Winning Bill(s):`}
+                      </span>
                     </div>
                     <div className="winners-chips">
                       {r.winners.map((w, wIdx) => (
                         <div key={wIdx} className="winner-chip">
                           <span className="winner-receipt">{w.receipt}</span>
-                          <span className="winner-counter">({w.counter})</span>
+                          {role === 'admin' && <span className="winner-counter">({w.counter})</span>}
                           <span className="winner-units">{w.units} unit(s)</span>
                           <b className="winner-prize">{money(w.prize)}</b>
                         </div>
@@ -311,7 +343,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="no-winners-text">No matching winning bills for this draw.</div>
+                  <div className="no-winners-text">
+                    {role === 'counter'
+                      ? `No winning tickets from ${currentCounter} for this draw.`
+                      : 'No matching winning bills for this draw.'}
+                  </div>
                 )}
               </div>
             ))}

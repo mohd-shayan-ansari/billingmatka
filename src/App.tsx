@@ -380,6 +380,8 @@ export function App() {
           onClose={() => setModalBill(null)}
           printerConfig={printerConfig}
           cityMap={cityMap}
+          role={role}
+          currentCounter={currentCounter}
         />
       )}
 
