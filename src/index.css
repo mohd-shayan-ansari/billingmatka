@@ -906,6 +906,663 @@ button, input, select {
   cursor: not-allowed;
 }
 
+/* Live Telemetry Header */
+.live-telemetry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.telemetry-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.live-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #059669;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 9999px;
+  letter-spacing: 0.03em;
+}
+
+.dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: pulseGreen 1.8s infinite;
+}
+
+@keyframes pulseGreen {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.telemetry-clock {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.telemetry-slot-status {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.badge-open {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-locked {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.btn-jump-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-jump-live:hover {
+  background: #fecaca;
+}
+
+/* Date Navigator Card */
+.date-navigator-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.date-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.date-nav-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: var(--text-main);
+}
+
+.date-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.date-display-center {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.date-label {
+  font-size: 12px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-iso-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.hidden-date-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Slot Navigator Card */
+.slot-navigator-card {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.slot-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.slot-nav-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.slot-stepper-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-slot-step {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  background: #f8fafc;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.btn-slot-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.slot-stepper-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  padding: 0 4px;
+}
+
+.slots-scroll-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.slots-scroll-track::-webkit-scrollbar { display: none; }
+
+.slot-chip-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 90px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-subtle);
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  text-align: left;
+}
+
+.slot-chip-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.slot-chip-btn.active {
+  background: #eff6ff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.slot-chip-btn.is-live {
+  border-color: #10b981;
+}
+
+.slot-chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+}
+
+.slot-chip-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.slot-chip-btn.active .slot-chip-time {
+  color: #2563eb;
+}
+
+.chip-live-badge {
+  font-size: 8px;
+  font-weight: 800;
+  background: #10b981;
+  color: #ffffff;
+  padding: 1px 4px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+.slot-chip-amount {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #16a34a;
+  margin-top: 2px;
+}
+
+/* Hero Section: Per-Counter Sales for Selected Slot */
+.slot-spotlight-card {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.slot-spotlight-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.spotlight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #4f46e5;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+
+.spotlight-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.spotlight-date-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.spotlight-live-tag {
+  color: #059669;
+  font-weight: 700;
+}
+
+.spotlight-metrics-total {
+  text-align: right;
+}
+
+.total-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+}
+
+.total-val {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  color: #16a34a;
+  display: block;
+  letter-spacing: -0.02em;
+}
+
+.total-sub {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Per-Counter Cards Grid */
+.counters-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.counter-perf-card {
+  background: #f8fafc;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: all 0.15s ease;
+}
+
+.counter-perf-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.counter-perf-card.top-seller {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+
+.counter-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.counter-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.counter-icon-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.counter-perf-card.top-seller .counter-icon-box {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.counter-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.counter-share-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.counter-amount-hero {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.counter-perf-card.top-seller .counter-amount-hero {
+  color: #15803d;
+}
+
+.counter-progress-track {
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.counter-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+.counter-perf-card.top-seller .counter-progress-fill {
+  background: #10b981;
+}
+
+.counter-stats-footer {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.empty-slot-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px dashed var(--border-subtle);
+  margin-top: 8px;
+}
+
+.slot-result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+}
+
+/* Full Day Slot Matrix Table */
+.slot-table-card {
+  overflow: hidden;
+}
+
+.table-responsive-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.slot-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.slot-matrix-table th {
+  background: #f8fafc;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  letter-spacing: 0.03em;
+}
+
+.slot-matrix-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.slot-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.slot-row:hover {
+  background: #f8fafc;
+}
+
+.slot-row.row-selected {
+  background: #eff6ff !important;
+}
+
+.slot-row.row-selected td {
+  border-color: #bfdbfe;
+}
+
+.slot-row.row-live {
+  border-left: 3px solid #10b981;
+}
+
+.cell-slot-time {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.slot-time-flex {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.live-dot-mini {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+  animation: pulseGreen 1.8s infinite;
+}
+
+.cell-counter-val {
+  font-family: var(--font-mono);
+  color: var(--text-main);
+}
+
+.cell-total-amt {
+  font-family: var(--font-mono);
+  color: #16a34a;
+}
+
+.cell-bills-count {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.slot-status-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+}
+
+.slot-status-pill.status-live {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.slot-status-pill.status-completed {
+  background: #f1f5f9;
+  color: var(--text-muted);
+}
+
+.slot-status-pill.status-upcoming {
+  background: #f8fafc;
+  color: var(--text-dim);
+  border: 1px dashed #cbd5e1;
+}
+
+.table-total-row {
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.table-total-row td {
+  border-top: 2px solid #cbd5e1;
+  border-bottom: 0;
+  padding: 10px;
+}
+
+.matrix-scope-toggle {
+  display: flex;
+  gap: 3px;
+  background: #f1f5f9;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.matrix-tile-active {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+.matrix-tile-active .matrix-num {
+  color: #2563eb !important;
+  font-weight: 800;
+}
+
 /* KPI Cards */
 .kpi-grid {
   display: grid;
