@@ -30,7 +30,6 @@ import {
   subscribePrinterStatus,
 } from '../utils/printer';
 import {
-  getMaskedSupabaseInfo,
   initSupabaseClient,
 } from '../lib/supabase';
 import { getCityColorTheme } from '../utils/helpers';
@@ -92,15 +91,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [btStatus, setBtStatus] = useState(getBluetoothState());
   const [testPrintMsg, setTestPrintMsg] = useState<string>('');
 
-  // Supabase cloud info (keys hidden from frontend)
-  const [cloudInfo, setCloudInfo] = useState(getMaskedSupabaseInfo());
+  // Supabase cloud sync status
   const [cloudMsg, setCloudMsg] = useState('');
 
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
     const unsub = subscribePrinterStatus((s) => setBtStatus(s));
-    setCloudInfo(getMaskedSupabaseInfo());
     return unsub;
   }, []);
 
@@ -289,8 +286,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
   const handleRefreshCloud = () => {
     initSupabaseClient();
-    setCloudInfo(getMaskedSupabaseInfo());
-    setCloudMsg('Verified Supabase cloud connection.');
+    setCloudMsg('Verified cloud database connection.');
     setTimeout(() => setCloudMsg(''), 3000);
   };
 
@@ -435,9 +431,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
         <div className="printer-status-bar" style={{ marginTop: 6 }}>
           <div className="printer-info">
-            <b>Database Host: </b>
-            <span className="font-mono text-sm text-emerald">
-              {cloudInfo.isConfigured ? cloudInfo.projectHost : 'Local Offline Mode'}
+            <b>Cloud Sync: </b>
+            <span className="text-sm font-semibold text-emerald">
+              {isCloudConnected ? 'Connected & Operational (Multi-Counter)' : 'Local Offline Mode'}
             </span>
           </div>
           <button
@@ -452,7 +448,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
         <div className="notice-banner info-banner" style={{ marginTop: 10 }}>
           <span>
-            <b>Security Note:</b> Database credentials are securely loaded from backend environment variables (<code>.env</code> / Vercel). Your secret API keys are protected and never displayed in the frontend.
+            <b>Security Note:</b> Database host and authentication keys are kept completely private and protected. No database endpoints, host URLs, or secret credentials are exposed in the frontend.
           </span>
         </div>
 

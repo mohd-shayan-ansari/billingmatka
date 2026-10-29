@@ -30,15 +30,9 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
   return { url: '', anonKey: '' };
 }
 
-export function getMaskedSupabaseInfo(): { isConfigured: boolean; projectHost: string } {
+export function getMaskedSupabaseInfo(): { isConfigured: boolean } {
   const config = getStoredSupabaseConfig();
-  if (!config.url) return { isConfigured: false, projectHost: 'Not Configured' };
-  try {
-    const u = new URL(config.url);
-    return { isConfigured: true, projectHost: u.hostname };
-  } catch {
-    return { isConfigured: true, projectHost: 'Configured' };
-  }
+  return { isConfigured: Boolean(config.url && config.anonKey) };
 }
 
 export function saveSupabaseConfig(config: SupabaseConfig) {
