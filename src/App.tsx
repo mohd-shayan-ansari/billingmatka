@@ -28,6 +28,7 @@ import { BillsPage } from './components/BillsPage';
 import { SettingsPage } from './components/SettingsPage';
 import { ReceiptModal } from './components/ReceiptModal';
 import { RoleModal } from './components/RoleModal';
+import { LoginScreen } from './components/LoginScreen';
 
 const LOCAL_STORAGE_KEY = 'luckyDesk_v2_state';
 const PRINTER_STORAGE_KEY = 'luckyDesk_printer_config';
@@ -93,6 +94,10 @@ export function App() {
 
   const [currentCounter, setCurrentCounter] = useState<string>(() => {
     return sessionStorage.getItem('luckyDesk_counter') || 'Counter 1';
+  });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('luckyDesk_authenticated') === 'true';
   });
 
   const [activeTab, setActiveTab] = useState<TabKey>('billing');
@@ -247,6 +252,23 @@ export function App() {
     setIsRoleModalOpen(false);
   };
 
+  const handleLoginSuccess = (newRole: UserRole, counterName: string) => {
+    setRole(newRole);
+    setCurrentCounter(counterName);
+    setIsAuthenticated(true);
+    sessionStorage.setItem('luckyDesk_authenticated', 'true');
+    sessionStorage.setItem('luckyDesk_role', newRole);
+    sessionStorage.setItem('luckyDesk_counter', counterName);
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('luckyDesk_authenticated');
+    sessionStorage.removeItem('luckyDesk_role');
+    sessionStorage.removeItem('luckyDesk_counter');
+    setIsRoleModalOpen(false);
+  };
+
   const handleExportJson = () => {
     const data = {
       exportDate: new Date().toISOString(),
@@ -263,6 +285,17 @@ export function App() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // Authentication Gate: Require Login if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <LoginScreen
+        counters={settings.counters || []}
+        adminPin={settings.adminPin || '2468'}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -355,6 +388,7 @@ export function App() {
           onClose={() => setIsRoleModalOpen(false)}
           onSwitchToCounter={handleSwitchToCounter}
           onSwitchToAdmin={handleSwitchToAdmin}
+          onLogout={handleLogout}
         />
       )}
     </div>

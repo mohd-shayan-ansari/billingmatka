@@ -10,6 +10,7 @@ interface RoleModalProps {
   onClose: () => void;
   onSwitchToCounter: (counterName: string) => void;
   onSwitchToAdmin: () => void;
+  onLogout?: () => void;
 }
 
 export const RoleModal: React.FC<RoleModalProps> = ({
@@ -20,6 +21,7 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   onClose,
   onSwitchToCounter,
   onSwitchToAdmin,
+  onLogout,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -136,6 +138,19 @@ export const RoleModal: React.FC<RoleModalProps> = ({
               Unlock Admin Access
             </button>
           </form>
+        )}
+
+        {onLogout && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+            <button
+              type="button"
+              className="btn-text-danger"
+              style={{ width: '100%', justifyContent: 'center', padding: '6px', fontSize: 12, fontWeight: 700 }}
+              onClick={onLogout}
+            >
+              Log Out of Session
+            </button>
+          </div>
         )}
       </div>
     </div>
