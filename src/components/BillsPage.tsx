@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Download, Printer, Eye, FileText, Calendar } from 'lucide-react';
 import type { Bill, City, UserRole } from '../types';
-import { money } from '../utils/helpers';
+import { money, getCityColorTheme } from '../utils/helpers';
 
 interface BillsPageProps {
   bills: Bill[];
@@ -152,11 +152,22 @@ export const BillsPage: React.FC<BillsPageProps> = ({
                 <div className="bill-numbers-summary">
                   <div className="numbers-badge">
                     {b.items && b.items.length > 0 ? (
-                      b.items.map((it, i) => (
-                        <span key={i} className="num-pill">
-                          #{it.number} (×{it.units})
-                        </span>
-                      ))
+                      b.items.map((it, i) => {
+                        const itTheme = getCityColorTheme(it.cityId, cities);
+                        return (
+                          <span
+                            key={i}
+                            className="num-pill"
+                            style={{
+                              backgroundColor: itTheme.light,
+                              borderColor: itTheme.border,
+                              color: itTheme.text,
+                            }}
+                          >
+                            #{it.number} (×{it.units})
+                          </span>
+                        );
+                      })
                     ) : (
                       <span className="num-pill">#{b.number} (×{b.units})</span>
                     )}

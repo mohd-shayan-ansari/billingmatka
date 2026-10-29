@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Minus, Trash2, Printer, Search, Sparkles, Check, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Minus, Trash2, Printer, Search, Sparkles, Check, Bluetooth } from 'lucide-react';
 import type { Bill, City, PrinterConfig, Settings, UserRole } from '../types';
-import { activeSlot, billingLocked, generateNextReceiptNumber, money, today } from '../utils/helpers';
-import { printBill } from '../utils/printer';
+import { activeSlot, billingLocked, generateNextReceiptNumber, money, today, getCityColorTheme } from '../utils/helpers';
+import { printBill, connectBluetoothPrinter, disconnectBluetoothPrinter, subscribePrinterStatus } from '../utils/printer';
 
 interface BillingPageProps {
   cities: City[];
@@ -13,6 +13,7 @@ interface BillingPageProps {
   printerConfig: PrinterConfig;
   onBillCreated: (bill: Bill) => void;
   onOpenReceiptModal: (bill: Bill) => void;
+  onSwitchRole?: () => void;
 }
 
 export const BillingPage: React.FC<BillingPageProps> = ({
@@ -24,6 +25,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   printerConfig,
   onBillCreated,
   onOpenReceiptModal,
+  onSwitchRole,
 }) => {
   const enabledCities = useMemo(() => cities.filter((c) => c.enabled), [cities]);
   const [selectedCityId, setSelectedCityId] = useState<string>(
@@ -34,6 +36,61 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   const [customerName, setCustomerName] = useState<string>('');
   const [selectedCounter, setSelectedCounter] = useState<string>(currentCounter);
   const [statusMessage, setStatusMessage] = useState<string>('');
+
+  // BT status subscription
+  const [btStatus, setBtStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+  const [btDeviceName, setBtDeviceName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribePrinterStatus((state) => {
+      setBtStatus(state.status);
+      setBtDeviceName(state.deviceName);
+    });
+    return unsub;
+  }, []);
+
+  const handleToggleBT = async () => {
+    if (btStatus === 'connected') {
+      disconnectBluetoothPrinter();
+    } else {
+      await connectBluetoothPrinter();
+    }
+  };
+
+  // Clock & Slot countdown timer
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentTimeStr = useMemo(() => {
+    return now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  }, [now]);
+
+  const currentSlot = useMemo(() => activeSlot(settings), [settings, now]);
+  const isLocked = useMemo(() => billingLocked(settings), [settings, now]);
+
+  const slotRemainingStr = useMemo(() => {
+    if (!currentSlot || isLocked) return '';
+    try {
+      const [slotH, slotM] = currentSlot.split(':').map(Number);
+      const slotTimeMs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slotH, slotM, 0).getTime();
+      const diffMs = slotTimeMs - now.getTime();
+      if (diffMs <= 0) return '0m 0s';
+      const mins = Math.floor(diffMs / 60000);
+      const secs = Math.floor((diffMs % 60000) / 1000);
+      return `${mins}m ${secs}s`;
+    } catch {
+      return '';
+    }
+  }, [currentSlot, isLocked, now]);
+
+  // Current selected city theme
+  const activeCityTheme = useMemo(
+    () => getCityColorTheme(selectedCityId, cities),
+    [selectedCityId, cities]
+  );
 
   // Draft quantities stored as key: "cityId|type|number" => quantity
   const [draftQuantities, setDraftQuantities] = useState<Record<string, number>>(() => {
@@ -136,9 +193,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     return numbersList.filter((n) => n.includes(searchNum.trim()));
   }, [numbersList, searchNum]);
 
-  const isLocked = billingLocked(settings);
-  const currentSlot = activeSlot(settings);
-
   // Quick batch add to the highlighted / searched number
   const handleQuickAdd = (num: string, amount: number) => {
     updateQuantity(selectedCityId, numberType, num, amount);
@@ -154,8 +208,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       return;
     }
 
-    const now = new Date();
-    const timeLabel = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    const billDate = new Date();
+    const timeLabel = billDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     const dateStr = today();
     const counterToUse = role === 'admin' ? selectedCounter : currentCounter;
 
@@ -166,7 +220,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       receipt: receiptNo,
       date: dateStr,
       timeLabel,
-      timestamp: now.toISOString(),
+      timestamp: billDate.toISOString(),
       counter: counterToUse,
       customer: customerName.trim() || undefined,
       slot: currentSlot,
@@ -197,6 +251,41 @@ export const BillingPage: React.FC<BillingPageProps> = ({
 
   return (
     <div className="billing-page">
+      {/* Sleek, Non-intrusive Top Bar replacing the big dark header */}
+      <div className="mini-top-bar">
+        <div className="mini-bar-left">
+          <span className="mini-clock">{currentTimeStr}</span>
+          <span className="mini-divider">•</span>
+          <span className="mini-draw">
+            Draw: <b>{currentSlot}</b>
+          </span>
+          <span className={`mini-status-pill ${isLocked ? 'status-locked' : 'status-open'}`}>
+            {isLocked ? 'LOCKED' : `OPEN (${slotRemainingStr || 'Active'})`}
+          </span>
+        </div>
+        <div className="mini-bar-right">
+          <button
+            type="button"
+            className={`btn-mini-bt ${btStatus === 'connected' ? 'connected' : ''}`}
+            onClick={handleToggleBT}
+            title={btStatus === 'connected' ? `Connected: ${btDeviceName || 'Printer'}` : 'Connect Bluetooth Printer'}
+          >
+            <Bluetooth size={13} />
+            <span>{btStatus === 'connected' ? 'BT On' : 'Connect BT'}</span>
+          </button>
+          {onSwitchRole && (
+            <button
+              type="button"
+              className="btn-mini-role"
+              onClick={onSwitchRole}
+              title="Click to switch Counter / Admin"
+            >
+              {role === 'admin' ? 'Admin' : currentCounter}
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Top Banner Message */}
       {statusMessage && (
         <div className="status-toast">
@@ -205,22 +294,41 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         </div>
       )}
 
-      {/* City Chips Selector */}
-      <div className="city-chips-scroll">
-        <span className="chips-label">City:</span>
-        {enabledCities.map((c) => {
-          const isSelected = c.id === selectedCityId;
-          return (
-            <button
-              key={c.id}
-              type="button"
-              className={`city-chip ${isSelected ? 'active' : ''}`}
-              onClick={() => setSelectedCityId(c.id)}
-            >
-              {c.name}
-            </button>
-          );
-        })}
+      {/* ENLARGED City Selection Buttons */}
+      <div className="city-selector-section">
+        <div className="city-chips-scroll">
+          {enabledCities.map((c) => {
+            const isSelected = c.id === selectedCityId;
+            const cTheme = getCityColorTheme(c.id, cities);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={`city-btn-large ${isSelected ? 'active' : ''}`}
+                style={{
+                  backgroundColor: isSelected ? cTheme.primary : '#ffffff',
+                  borderColor: isSelected ? cTheme.primary : cTheme.border,
+                  color: isSelected ? '#ffffff' : cTheme.text,
+                  boxShadow: isSelected
+                    ? `0 6px 16px ${cTheme.primary}40`
+                    : '0 1px 3px rgba(0, 0, 0, 0.04)',
+                }}
+                onClick={() => setSelectedCityId(c.id)}
+              >
+                <span
+                  className="city-btn-dot"
+                  style={{
+                    backgroundColor: isSelected ? '#ffffff' : cTheme.primary,
+                  }}
+                />
+                <span className="city-btn-name">{c.name}</span>
+                {isSelected && (
+                  <Check size={16} className="city-btn-check" strokeWidth={3} />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Type & Filter Toolbar */}
@@ -290,9 +398,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             const key = `${selectedCityId}|${numberType}|${num}`;
             const qty = draftQuantities[key] || 0;
             const salesCount = numberSalesCounts[num] || 0;
+            const isTileSelected = qty > 0;
 
             let heatClass = '';
-            if (qty > 0) {
+            if (isTileSelected) {
               heatClass = 'tile-selected';
             } else if (salesCount > 0 && salesCount === maxSales && maxSales > 1) {
               heatClass = 'tile-hot';
@@ -301,7 +410,19 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             }
 
             return (
-              <div key={num} className={`number-tile ${heatClass}`}>
+              <div
+                key={num}
+                className={`number-tile ${heatClass}`}
+                style={
+                  isTileSelected
+                    ? {
+                        backgroundColor: activeCityTheme.light,
+                        borderColor: activeCityTheme.primary,
+                        boxShadow: `0 0 0 1px ${activeCityTheme.primary}40`,
+                      }
+                    : undefined
+                }
+              >
                 {/* Tile Header & Big Number */}
                 <button
                   type="button"
@@ -309,7 +430,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   onClick={() => updateQuantity(selectedCityId, numberType, num, 1)}
                   title={`Tap to add 1 unit to #${num}`}
                 >
-                  <span className="tile-number">{num}</span>
+                  <span
+                    className="tile-number"
+                    style={
+                      isTileSelected
+                        ? { color: activeCityTheme.primary, fontWeight: 800 }
+                        : undefined
+                    }
+                  >
+                    {num}
+                  </span>
                   {salesCount > 0 && (
                     <span className="tile-sales-count">{salesCount} sold</span>
                   )}
@@ -321,6 +451,15 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     type="button"
                     className="step-btn step-minus"
                     disabled={qty <= 0}
+                    style={
+                      isTileSelected
+                        ? {
+                            borderColor: activeCityTheme.border,
+                            color: activeCityTheme.primary,
+                            backgroundColor: '#ffffff',
+                          }
+                        : undefined
+                    }
                     onClick={() => updateQuantity(selectedCityId, numberType, num, -1)}
                   >
                     <Minus size={11} />
@@ -330,6 +469,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     type="number"
                     min="0"
                     className={`step-input ${qty > 0 ? 'has-val' : ''}`}
+                    style={
+                      isTileSelected
+                        ? {
+                            borderColor: activeCityTheme.primary,
+                            color: activeCityTheme.primary,
+                            fontWeight: 700,
+                            backgroundColor: '#ffffff',
+                          }
+                        : undefined
+                    }
                     value={qty || ''}
                     placeholder="0"
                     onChange={(e) => {
@@ -341,6 +490,15 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   <button
                     type="button"
                     className="step-btn step-plus"
+                    style={
+                      isTileSelected
+                        ? {
+                            backgroundColor: activeCityTheme.primary,
+                            borderColor: activeCityTheme.primary,
+                            color: '#ffffff',
+                          }
+                        : undefined
+                    }
                     onClick={() => updateQuantity(selectedCityId, numberType, num, 1)}
                   >
                     <Plus size={11} />
@@ -353,6 +511,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     <button
                       type="button"
                       className="quick-pill"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderColor: activeCityTheme.border,
+                        color: activeCityTheme.primary,
+                      }}
                       onClick={() => handleQuickAdd(num, 5)}
                     >
                       +5
@@ -360,6 +523,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     <button
                       type="button"
                       className="quick-pill"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderColor: activeCityTheme.border,
+                        color: activeCityTheme.primary,
+                      }}
                       onClick={() => handleQuickAdd(num, 10)}
                     >
                       +10
@@ -384,21 +552,53 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               </button>
             </div>
             <div className="selected-chips-row">
-              {selectedItems.map((it) => (
-                <div key={`${it.cityId}-${it.type}-${it.number}`} className="item-chip">
-                  <span className="chip-city">{it.cityName.slice(0, 3)}</span>
-                  <b className="chip-num">#{it.number}</b>
-                  <span className="chip-qty">×{it.units}</span>
-                  <span className="chip-amt">{money(it.amount)}</span>
-                  <button
-                    type="button"
-                    className="chip-remove"
-                    onClick={() => updateQuantity(it.cityId, it.type, it.number, 0, true)}
+              {selectedItems.map((it) => {
+                const itTheme = getCityColorTheme(it.cityId, cities);
+                return (
+                  <div
+                    key={`${it.cityId}-${it.type}-${it.number}`}
+                    className="item-chip"
+                    style={{
+                      backgroundColor: itTheme.light,
+                      borderColor: itTheme.border,
+                    }}
                   >
-                    ×
-                  </button>
-                </div>
-              ))}
+                    <span
+                      className="chip-city"
+                      style={{
+                        backgroundColor: itTheme.primary,
+                        color: '#ffffff',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {it.cityName.slice(0, 3)}
+                    </span>
+                    <b
+                      className="chip-num"
+                      style={{ color: itTheme.primary }}
+                    >
+                      #{it.number}
+                    </b>
+                    <span
+                      className="chip-qty"
+                      style={{ color: itTheme.text }}
+                    >
+                      ×{it.units}
+                    </span>
+                    <span className="chip-amt">{money(it.amount)}</span>
+                    <button
+                      type="button"
+                      className="chip-remove"
+                      style={{ color: itTheme.primary }}
+                      onClick={() => updateQuantity(it.cityId, it.type, it.number, 0, true)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

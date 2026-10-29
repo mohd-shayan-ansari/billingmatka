@@ -60,6 +60,46 @@ export function generateNextReceiptNumber(
   return `${prefix}-${String(nextSeq).padStart(2, '0')}`;
 }
 
+export interface CityColorTheme {
+  primary: string;
+  light: string;
+  border: string;
+  text: string;
+  badgeBg: string;
+}
+
+export const CITY_PALETTES: CityColorTheme[] = [
+  { primary: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', badgeBg: '#dbeafe' }, // Blue (Hyderabad/Rahul)
+  { primary: '#059669', light: '#ecfdf5', border: '#a7f3d0', text: '#047857', badgeBg: '#d1fae5' }, // Emerald (Delhi/Gelhi)
+  { primary: '#7c3aed', light: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9', badgeBg: '#ede9fe' }, // Purple (Mumbai)
+  { primary: '#d97706', light: '#fffbeb', border: '#fde68a', text: '#b45309', badgeBg: '#fef3c7' }, // Amber (Kolkata)
+  { primary: '#e11d48', light: '#fff1f2', border: '#fecdd3', text: '#be123c', badgeBg: '#ffe4e6' }, // Rose (Chennai)
+  { primary: '#0d9488', light: '#f0fdfa', border: '#99f6e4', text: '#0f766e', badgeBg: '#ccfbf1' }, // Teal (Bengaluru)
+  { primary: '#4f46e5', light: '#eef2ff', border: '#c7d2fe', text: '#4338ca', badgeBg: '#e0e7ff' }, // Indigo
+  { primary: '#c026d3', light: '#fdf4ff', border: '#f5d0fe', text: '#a21caf', badgeBg: '#fae8ff' }, // Fuchsia
+  { primary: '#0284c7', light: '#f0f9ff', border: '#bae6fd', text: '#0369a1', badgeBg: '#e0f2fe' }, // Sky
+];
+
+export function getCityColorTheme(cityIdOrIndex: string | number, cities?: City[]): CityColorTheme {
+  let idx = 0;
+  if (typeof cityIdOrIndex === 'number') {
+    idx = cityIdOrIndex;
+  } else if (cities && cities.length > 0) {
+    const foundIdx = cities.findIndex((c) => c.id === cityIdOrIndex);
+    if (foundIdx >= 0) {
+      idx = foundIdx;
+    } else {
+      const match = String(cityIdOrIndex).match(/\d+/);
+      if (match) idx = parseInt(match[0], 10);
+    }
+  } else {
+    const match = String(cityIdOrIndex).match(/\d+/);
+    if (match) idx = parseInt(match[0], 10);
+  }
+  return CITY_PALETTES[Math.abs(idx) % CITY_PALETTES.length];
+}
+
+
 export const INITIAL_CITIES: City[] = [
   'Hyderabad',
   'Delhi',

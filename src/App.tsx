@@ -20,7 +20,6 @@ import {
   isSupabaseConnected,
 } from './lib/supabase';
 
-import { Header } from './components/Header';
 import { Navigation, type TabKey } from './components/Navigation';
 import { BillingPage } from './components/BillingPage';
 import { OverviewPage } from './components/OverviewPage';
@@ -267,16 +266,6 @@ export function App() {
 
   return (
     <div className="app-shell">
-      {/* Sticky Header with Live Slot & Bluetooth Printer status */}
-      <Header
-        role={role}
-        currentCounter={currentCounter}
-        settings={settings}
-        onSwitchRole={() => setIsRoleModalOpen(true)}
-        onRefreshData={loadCloudData}
-        isCloudConnected={isCloudActive}
-      />
-
       {/* Main Tab View */}
       <main className="main-content">
         {activeTab === 'billing' && (
@@ -289,6 +278,7 @@ export function App() {
             printerConfig={printerConfig}
             onBillCreated={handleBillCreated}
             onOpenReceiptModal={(b) => setModalBill(b)}
+            onSwitchRole={() => setIsRoleModalOpen(true)}
           />
         )}
 
@@ -337,6 +327,7 @@ export function App() {
             onSaveCities={handleSaveCities}
             onSavePrinterConfig={handleSavePrinterConfig}
             isCloudConnected={isCloudActive}
+            onSwitchRole={() => setIsRoleModalOpen(true)}
           />
         )}
       </main>

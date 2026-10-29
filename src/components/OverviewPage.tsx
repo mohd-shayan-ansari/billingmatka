@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { TrendingUp, Receipt, Trophy, Clock, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import type { Bill, City, Result, Settings, UserRole } from '../types';
-import { activeSlot, billingLocked, fmtTime, money, today } from '../utils/helpers';
+import { activeSlot, billingLocked, fmtTime, money, today, getCityColorTheme } from '../utils/helpers';
 
 interface OverviewPageProps {
   cities: City[];
@@ -165,16 +165,25 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         {/* Matrix Controls */}
         <div className="matrix-toolbar">
           <div className="city-chips-compact">
-            {cities.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`matrix-city-chip ${selectedCityId === c.id ? 'active' : ''}`}
-                onClick={() => setSelectedCityId(c.id)}
-              >
-                {c.name}
-              </button>
-            ))}
+            {cities.map((c) => {
+              const isSelected = selectedCityId === c.id;
+              const cTheme = getCityColorTheme(c.id, cities);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`matrix-city-chip ${isSelected ? 'active' : ''}`}
+                  style={
+                    isSelected
+                      ? { backgroundColor: cTheme.primary, borderColor: cTheme.primary, color: '#ffffff' }
+                      : { borderColor: cTheme.border, color: cTheme.text }
+                  }
+                  onClick={() => setSelectedCityId(c.id)}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
           </div>
 
           <div className="type-toggle-mini">

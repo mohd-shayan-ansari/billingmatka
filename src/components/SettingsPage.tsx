@@ -37,6 +37,7 @@ interface SettingsPageProps {
   onSaveCities: (cities: City[]) => void;
   onSavePrinterConfig: (config: PrinterConfig) => void;
   isCloudConnected: boolean;
+  onSwitchRole?: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -48,6 +49,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onSaveCities,
   onSavePrinterConfig,
   isCloudConnected,
+  onSwitchRole,
 }) => {
   // Local form states for settings
   const [startTime, setStartTime] = useState(settings.start);
