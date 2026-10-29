@@ -13,6 +13,12 @@ import {
   Trash2,
   Lock,
   Unlock,
+  Edit2,
+  Save,
+  X,
+  Eye,
+  EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import type { City, Counter, PrinterConfig, Settings, UserRole } from '../types';
 import {
@@ -68,6 +74,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [newCounterName, setNewCounterName] = useState('');
   const [newCounterEmail, setNewCounterEmail] = useState('');
   const [newCounterPass, setNewCounterPass] = useState('');
+  const [showNewCounterPass, setShowNewCounterPass] = useState(false);
+
+  // Counter editing states
+  const [editingCounterId, setEditingCounterId] = useState<string | null>(null);
+  const [editCounterName, setEditCounterName] = useState('');
+  const [editCounterEmail, setEditCounterEmail] = useState('');
+  const [editCounterPass, setEditCounterPass] = useState('');
+  const [showEditPass, setShowEditPass] = useState(false);
+
+  // Admin PIN management state
+  const [adminPinInput, setAdminPinInput] = useState(settings.adminPin || '2468');
+  const [showAdminPin, setShowAdminPin] = useState(false);
 
   // Printer config state
   const [pConfig, setPConfig] = useState<PrinterConfig>(printerConfig);
@@ -179,6 +197,68 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       counterCount: updatedCounters.length,
     });
     showToast('Counter removed.');
+  };
+
+  const startEditCounter = (c: Counter) => {
+    setEditingCounterId(c.id);
+    setEditCounterName(c.name);
+    setEditCounterEmail(c.email);
+    setEditCounterPass('');
+    setShowEditPass(false);
+  };
+
+  const cancelEditCounter = () => {
+    setEditingCounterId(null);
+    setEditCounterName('');
+    setEditCounterEmail('');
+    setEditCounterPass('');
+  };
+
+  const handleSaveCounterEdit = () => {
+    if (!editingCounterId) return;
+    const name = editCounterName.trim();
+    const email = editCounterEmail.trim().toLowerCase();
+    if (!name) return alert('Counter name cannot be empty.');
+    if (!email) return alert('Login email cannot be empty.');
+
+    if (editCounterPass.trim() && editCounterPass.trim().length < 6) {
+      return alert('New password must be at least 6 characters.');
+    }
+
+    const updatedCounters = (settings.counters || []).map((c) => {
+      if (c.id === editingCounterId) {
+        return {
+          ...c,
+          name,
+          email,
+          ...(editCounterPass.trim() ? { password: editCounterPass.trim() } : {}),
+        };
+      }
+      return c;
+    });
+
+    const updatedSettings: Settings = {
+      ...settings,
+      counters: updatedCounters,
+      counterCount: updatedCounters.length,
+    };
+
+    onSaveSettings(updatedSettings);
+    setEditingCounterId(null);
+    showToast(`Updated "${name}" account successfully.`);
+  };
+
+  const handleSaveAdminPin = () => {
+    const pin = adminPinInput.trim();
+    if (pin.length < 4) {
+      return alert('Admin Security PIN must be at least 4 characters.');
+    }
+    const updatedSettings: Settings = {
+      ...settings,
+      adminPin: pin,
+    };
+    onSaveSettings(updatedSettings);
+    showToast('Admin Master Security PIN updated successfully.');
   };
 
   // Printer settings
@@ -567,7 +647,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
         <div className="form-grid" style={{ marginBottom: 14 }}>
           <div className="form-field">
-            <label>Counter Name</label>
+            <label>Counter Name (optional)</label>
             <input
               type="text"
               placeholder="e.g. Counter 4"
@@ -590,13 +670,34 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="form-field">
             <label>Set Password</label>
-            <input
-              type="password"
-              placeholder="Min 6 characters"
-              value={newCounterPass}
-              onChange={(e) => setNewCounterPass(e.target.value)}
-              className="form-input"
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showNewCounterPass ? 'text' : 'password'}
+                placeholder="Min 6 characters"
+                value={newCounterPass}
+                onChange={(e) => setNewCounterPass(e.target.value)}
+                className="form-input"
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewCounterPass(!showNewCounterPass)}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={showNewCounterPass ? 'Hide password' : 'Show password'}
+              >
+                {showNewCounterPass ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -606,31 +707,222 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </button>
 
         <div className="items-manage-list" style={{ marginTop: 16 }}>
-          {(settings.counters || []).map((c) => (
-            <div key={c.id} className="manage-item-row">
-              <div className="flex-col flex-1">
-                <b className="text-sm">{c.name}</b>
-                <span className="text-xs text-muted">{c.email}</span>
-              </div>
-              <div className="item-actions">
-                <button
-                  type="button"
-                  className={`btn-toggle-status ${c.enabled ? 'is-enabled' : 'is-disabled'}`}
-                  onClick={() => handleToggleCounter(c.id)}
+          {(settings.counters || []).map((c) => {
+            const isEditing = editingCounterId === c.id;
+
+            if (isEditing) {
+              return (
+                <div
+                  key={c.id}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1.5px solid #3b82f6',
+                    borderRadius: 8,
+                    padding: 14,
+                    marginBottom: 10,
+                  }}
                 >
-                  {c.enabled ? 'Active' : 'Disabled'}
-                </button>
-                <button
-                  type="button"
-                  className="btn-danger-icon"
-                  onClick={() => handleRemoveCounter(c.id)}
-                  title="Remove Counter"
-                >
-                  <Trash2 size={14} />
-                </button>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <div className="flex-row items-center gap-1">
+                      <Edit2 size={14} className="text-blue" />
+                      <b style={{ fontSize: 13, color: '#0f172a' }}>Edit Account: {c.name}</b>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748b' }}>Change name & password</span>
+                  </div>
+
+                  <div className="form-grid" style={{ marginBottom: 12 }}>
+                    <div className="form-field">
+                      <label style={{ fontSize: 11, fontWeight: 600 }}>Counter Name (optional)</label>
+                      <input
+                        type="text"
+                        value={editCounterName}
+                        onChange={(e) => setEditCounterName(e.target.value)}
+                        className="form-input"
+                        placeholder="e.g. Counter 1"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label style={{ fontSize: 11, fontWeight: 600 }}>Login Email</label>
+                      <input
+                        type="email"
+                        value={editCounterEmail}
+                        onChange={(e) => setEditCounterEmail(e.target.value)}
+                        className="form-input"
+                        placeholder="counter1@luckydesk.com"
+                      />
+                    </div>
+
+                    <div className="form-field">
+                      <label style={{ fontSize: 11, fontWeight: 600 }}>New Password</label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showEditPass ? 'text' : 'password'}
+                          value={editCounterPass}
+                          onChange={(e) => setEditCounterPass(e.target.value)}
+                          className="form-input"
+                          placeholder="Leave blank to keep current"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowEditPass(!showEditPass)}
+                          style={{
+                            position: 'absolute',
+                            right: 10,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: '#64748b',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                          title={showEditPass ? 'Hide password' : 'Show password'}
+                        >
+                          {showEditPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn-sm btn-ghost" onClick={cancelEditCounter}>
+                      <X size={14} />
+                      <span>Cancel</span>
+                    </button>
+                    <button type="button" className="btn-sm btn-primary" onClick={handleSaveCounterEdit}>
+                      <Save size={14} />
+                      <span>Save Changes</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={c.id}
+                className="manage-item-row"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: '#ffffff',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 8,
+                  marginBottom: 8,
+                }}
+              >
+                <div className="flex-col flex-1">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <b className="text-sm">{c.name}</b>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: '#64748b',
+                        background: '#f1f5f9',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        letterSpacing: '1px',
+                        fontFamily: 'monospace',
+                      }}
+                    >
+                      ••••••••
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted">{c.email}</span>
+                </div>
+
+                <div className="item-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    className="btn-sm btn-secondary"
+                    onClick={() => startEditCounter(c)}
+                    title="Edit Name & Password"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', fontSize: 12 }}
+                  >
+                    <Edit2 size={13} />
+                    <span>Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-toggle-status ${c.enabled ? 'is-enabled' : 'is-disabled'}`}
+                    onClick={() => handleToggleCounter(c.id)}
+                  >
+                    {c.enabled ? 'Active' : 'Disabled'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-danger-icon"
+                    onClick={() => handleRemoveCounter(c.id)}
+                    title="Remove Counter"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 6. ADMIN MASTER SECURITY PIN */}
+      <div className="card settings-card">
+        <div className="card-header-row">
+          <div className="flex-row items-center gap-2">
+            <ShieldCheck size={20} className="text-indigo" />
+            <div>
+              <h2 className="card-title">Admin Master Security PIN</h2>
+              <div className="card-subtitle">Manage master PIN for results declaration and settings access</div>
             </div>
-          ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 10 }}>
+          <div className="form-field" style={{ minWidth: 240, margin: 0 }}>
+            <label style={{ fontSize: 12, fontWeight: 600 }}>Admin Master PIN</label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showAdminPin ? 'text' : 'password'}
+                placeholder="Enter new Master PIN"
+                value={adminPinInput}
+                onChange={(e) => setAdminPinInput(e.target.value)}
+                className="form-input font-mono text-center tracking-widest text-base"
+                maxLength={10}
+              />
+              <button
+                type="button"
+                onClick={() => setShowAdminPin(!showAdminPin)}
+                style={{
+                  position: 'absolute',
+                  right: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title={showAdminPin ? 'Hide PIN' : 'Show PIN'}
+              >
+                {showAdminPin ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ marginTop: 20 }}
+            onClick={handleSaveAdminPin}
+          >
+            <Save size={15} />
+            <span>Update Master PIN</span>
+          </button>
         </div>
       </div>
     </div>

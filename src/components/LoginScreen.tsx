@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldCheck, UserCheck, KeyRound, Lock, Sparkles, AlertCircle, ArrowRight } from 'lucide-react';
+import { ShieldCheck, UserCheck, KeyRound, Lock, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import type { Counter, UserRole } from '../types';
 
 interface LoginScreenProps {
@@ -15,8 +15,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'admin' | 'counter'>('admin');
   const [adminInputPin, setAdminInputPin] = useState('');
-  const [counterEmail, setCounterEmail] = useState('counter1@luckydesk.com');
-  const [counterPassword, setCounterPassword] = useState('password');
+  const [showAdminPin, setShowAdminPin] = useState(false);
+
+  const [counterEmail, setCounterEmail] = useState(() => {
+    return counters.length > 0 ? counters[0].email : 'counter1@luckydesk.com';
+  });
+  const [counterPassword, setCounterPassword] = useState('');
+  const [showCounterPassword, setShowCounterPassword] = useState(false);
+
   const [error, setError] = useState('');
 
   const handleAdminSubmit = (e: React.FormEvent) => {
@@ -26,7 +32,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (adminInputPin === validPin || adminInputPin === '2468') {
       onLoginSuccess('admin', 'Counter 1');
     } else {
-      setError('Incorrect Admin Security PIN. (Default PIN: 2468)');
+      setError('Incorrect Admin Security PIN.');
     }
   };
 
@@ -47,19 +53,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
 
     onLoginSuccess('counter', found.name);
-  };
-
-  const autofillCounter = (c: Counter) => {
-    setActiveTab('counter');
-    setCounterEmail(c.email);
-    setCounterPassword(c.password || 'password');
-    setError('');
-  };
-
-  const autofillAdmin = () => {
-    setActiveTab('admin');
-    setAdminInputPin(adminPin || '2468');
-    setError('');
   };
 
   return (
@@ -114,22 +107,39 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           <form onSubmit={handleAdminSubmit} className="login-form">
             <div className="form-field">
               <label>Admin Security PIN / Password</label>
-              <div className="input-with-icon">
+              <div className="input-with-icon" style={{ position: 'relative' }}>
                 <KeyRound size={16} className="input-icon-left text-muted" />
                 <input
-                  type="password"
+                  type={showAdminPin ? 'text' : 'password'}
                   required
                   autoFocus
-                  placeholder="Enter PIN (e.g. 2468)"
+                  placeholder="Enter Security PIN"
                   value={adminInputPin}
                   onChange={(e) => setAdminInputPin(e.target.value)}
                   className="form-input has-left-icon font-mono text-center text-lg tracking-widest"
                   maxLength={10}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPin(!showAdminPin)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showAdminPin ? 'Hide PIN' : 'Show PIN'}
+                >
+                  {showAdminPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-              <span className="field-hint">
-                Default Master PIN: <strong>2468</strong>
-              </span>
             </div>
 
             <button type="submit" className="btn-login-submit">
@@ -148,8 +158,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 value={counterEmail}
                 onChange={(e) => {
                   setCounterEmail(e.target.value);
-                  const matched = counters.find((c) => c.email === e.target.value);
-                  if (matched) setCounterPassword(matched.password || 'password');
+                  setCounterPassword('');
+                  setError('');
                 }}
                 className="form-input select-counter-login"
               >
@@ -163,20 +173,37 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             <div className="form-field">
               <label>Counter Password</label>
-              <div className="input-with-icon">
+              <div className="input-with-icon" style={{ position: 'relative' }}>
                 <Lock size={16} className="input-icon-left text-muted" />
                 <input
-                  type="password"
+                  type={showCounterPassword ? 'text' : 'password'}
                   required
                   placeholder="Enter counter password"
                   value={counterPassword}
                   onChange={(e) => setCounterPassword(e.target.value)}
                   className="form-input has-left-icon"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCounterPassword(!showCounterPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showCounterPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showCounterPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-              <span className="field-hint">
-                Default Counter Password: <strong>password</strong>
-              </span>
             </div>
 
             <button type="submit" className="btn-login-submit">
@@ -185,37 +212,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             </button>
           </form>
         )}
-
-        {/* Quick Demo Credentials Assistant */}
-        <div className="login-credentials-helper">
-          <div className="helper-header">
-            <Sparkles size={13} className="text-amber" />
-            <span>Tap to Auto-fill Default Passwords:</span>
-          </div>
-
-          <div className="credential-pills-row">
-            <button
-              type="button"
-              className="cred-pill cred-admin"
-              onClick={autofillAdmin}
-              title="Click to fill Admin PIN 2468"
-            >
-              <b>Admin</b>: PIN <code>2468</code>
-            </button>
-
-            {counters.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="cred-pill cred-counter"
-                onClick={() => autofillCounter(c)}
-                title={`Click to fill ${c.name} credentials`}
-              >
-                <b>{c.name}</b>: <code>password</code>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

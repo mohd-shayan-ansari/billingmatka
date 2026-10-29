@@ -223,6 +223,11 @@ export function App() {
     setSettings(updated);
     if (isCloudActive) {
       await cloudSaveSettings(updated);
+      if (updated.counters) {
+        for (const c of updated.counters) {
+          await cloudUpsertCounter(c);
+        }
+      }
     }
   };
 

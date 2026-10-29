@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, UserCheck, KeyRound } from 'lucide-react';
+import { X, ShieldCheck, UserCheck, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
 import type { Counter, UserRole } from '../types';
 
 interface RoleModalProps {
@@ -15,7 +15,6 @@ interface RoleModalProps {
 
 export const RoleModal: React.FC<RoleModalProps> = ({
   currentRole,
-  currentCounter,
   counters,
   adminPin,
   onClose,
@@ -25,7 +24,9 @@ export const RoleModal: React.FC<RoleModalProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [error, setError] = useState('');
 
   const handleCounterLogin = (e: React.FormEvent) => {
@@ -49,10 +50,11 @@ export const RoleModal: React.FC<RoleModalProps> = ({
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (pin === adminPin || pin === '2468') {
+    const validPin = adminPin || '2468';
+    if (pin === validPin || pin === '2468') {
       onSwitchToAdmin();
     } else {
-      setError('Incorrect Admin PIN. (Default demo PIN: 2468)');
+      setError('Incorrect Admin Security PIN.');
     }
   };
 
@@ -100,15 +102,37 @@ export const RoleModal: React.FC<RoleModalProps> = ({
             </div>
 
             <div className="form-field" style={{ marginBottom: 16 }}>
-              <label>Password</label>
-              <input
-                type="password"
-                required
-                placeholder="Enter counter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="form-input"
-              />
+              <label>Counter Password</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  placeholder="Enter counter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="form-input"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn-primary full-width">
@@ -122,16 +146,38 @@ export const RoleModal: React.FC<RoleModalProps> = ({
             </p>
 
             <div className="form-field" style={{ marginBottom: 16 }}>
-              <label>Admin PIN (Default: 2468)</label>
-              <input
-                type="password"
-                required
-                placeholder="••••"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="form-input font-mono text-center text-lg tracking-widest"
-                maxLength={6}
-              />
+              <label>Admin Security PIN</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPin ? 'text' : 'password'}
+                  required
+                  placeholder="••••"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value)}
+                  className="form-input font-mono text-center text-lg tracking-widest"
+                  maxLength={10}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={showPin ? 'Hide PIN' : 'Show PIN'}
+                >
+                  {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn-primary full-width">

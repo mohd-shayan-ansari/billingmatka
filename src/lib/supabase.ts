@@ -238,7 +238,7 @@ export async function cloudSaveSettings(settings: Settings): Promise<boolean> {
   if (!sb) return false;
 
   try {
-    const { error } = await sb.from('settings').upsert({
+    const payload: Record<string, any> = {
       id: 'primary',
       start_time: settings.start,
       end_time: settings.end,
@@ -249,8 +249,18 @@ export async function cloudSaveSettings(settings: Settings): Promise<boolean> {
       price_two_digit: settings.priceTwoDigit,
       price_one_digit: settings.priceOneDigit,
       updated_at: new Date().toISOString(),
-    });
-    if (error) throw error;
+    };
+    if (settings.adminPin) {
+      payload.admin_pin = settings.adminPin;
+    }
+    const { error } = await sb.from('settings').upsert(payload);
+    if (error && payload.admin_pin) {
+      delete payload.admin_pin;
+      const retry = await sb.from('settings').upsert(payload);
+      if (retry.error) throw retry.error;
+    } else if (error) {
+      throw error;
+    }
     return true;
   } catch (e) {
     console.error('Error saving settings to cloud:', e);
