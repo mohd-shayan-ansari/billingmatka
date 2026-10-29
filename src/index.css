@@ -657,11 +657,6 @@ button, input, select {
   background: #fef2f2;
 }
 
-.number-tile.tile-cool {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-}
-
 .tile-main-btn {
   background: transparent;
   border: 0;

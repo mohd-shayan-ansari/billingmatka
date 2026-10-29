@@ -27,6 +27,7 @@ import {
   getMaskedSupabaseInfo,
   initSupabaseClient,
 } from '../lib/supabase';
+import { getCityColorTheme } from '../utils/helpers';
 
 interface SettingsPageProps {
   cities: City[];
@@ -515,25 +516,40 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         <div className="items-manage-list">
-          {cities.map((c) => (
-            <div key={c.id} className="manage-item-row">
-              <input
-                type="text"
-                value={c.name}
-                onChange={(e) => handleRenameCity(c.id, e.target.value)}
-                className="item-name-input"
-              />
-              <div className="item-actions">
-                <button
-                  type="button"
-                  className={`btn-toggle-status ${c.enabled ? 'is-enabled' : 'is-disabled'}`}
-                  onClick={() => handleToggleCity(c.id)}
-                >
-                  {c.enabled ? 'Enabled' : 'Disabled'}
-                </button>
+          {cities.map((c) => {
+            const cTheme = getCityColorTheme(c.id, cities);
+            return (
+              <div key={c.id} className="manage-item-row">
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: '50%',
+                    backgroundColor: cTheme.primary,
+                    flexShrink: 0,
+                    marginRight: 6,
+                    boxShadow: `0 0 0 2px ${cTheme.border}`,
+                  }}
+                  title={`City theme color`}
+                />
+                <input
+                  type="text"
+                  value={c.name}
+                  onChange={(e) => handleRenameCity(c.id, e.target.value)}
+                  className="item-name-input"
+                />
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className={`btn-toggle-status ${c.enabled ? 'is-enabled' : 'is-disabled'}`}
+                    onClick={() => handleToggleCity(c.id)}
+                  >
+                    {c.enabled ? 'Enabled' : 'Disabled'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

@@ -405,8 +405,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               heatClass = 'tile-selected';
             } else if (salesCount > 0 && salesCount === maxSales && maxSales > 1) {
               heatClass = 'tile-hot';
-            } else if (salesCount === 0 || salesCount === minSales) {
-              heatClass = 'tile-cool';
             }
 
             return (
@@ -418,9 +416,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     ? {
                         backgroundColor: activeCityTheme.light,
                         borderColor: activeCityTheme.primary,
-                        boxShadow: `0 0 0 1px ${activeCityTheme.primary}40`,
+                        boxShadow: `0 0 0 1.5px ${activeCityTheme.primary}`,
                       }
-                    : undefined
+                    : {
+                        backgroundColor: activeCityTheme.boxBg,
+                        borderColor: activeCityTheme.boxBorder,
+                      }
                 }
               >
                 {/* Tile Header & Big Number */}
@@ -432,11 +433,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                 >
                   <span
                     className="tile-number"
-                    style={
-                      isTileSelected
-                        ? { color: activeCityTheme.primary, fontWeight: 800 }
-                        : undefined
-                    }
+                    style={{
+                      color: isTileSelected ? activeCityTheme.primary : activeCityTheme.text,
+                      fontWeight: isTileSelected ? 800 : 700,
+                    }}
                   >
                     {num}
                   </span>
@@ -451,15 +451,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     type="button"
                     className="step-btn step-minus"
                     disabled={qty <= 0}
-                    style={
-                      isTileSelected
-                        ? {
-                            borderColor: activeCityTheme.border,
-                            color: activeCityTheme.primary,
-                            backgroundColor: '#ffffff',
-                          }
-                        : undefined
-                    }
+                    style={{
+                      borderColor: isTileSelected ? activeCityTheme.border : activeCityTheme.boxBorder,
+                      color: isTileSelected ? activeCityTheme.primary : '#94a3b8',
+                      backgroundColor: '#ffffff',
+                    }}
                     onClick={() => updateQuantity(selectedCityId, numberType, num, -1)}
                   >
                     <Minus size={11} />
@@ -469,16 +465,12 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     type="number"
                     min="0"
                     className={`step-input ${qty > 0 ? 'has-val' : ''}`}
-                    style={
-                      isTileSelected
-                        ? {
-                            borderColor: activeCityTheme.primary,
-                            color: activeCityTheme.primary,
-                            fontWeight: 700,
-                            backgroundColor: '#ffffff',
-                          }
-                        : undefined
-                    }
+                    style={{
+                      borderColor: isTileSelected ? activeCityTheme.primary : activeCityTheme.boxBorder,
+                      color: isTileSelected ? activeCityTheme.primary : '#1e293b',
+                      fontWeight: isTileSelected ? 800 : 600,
+                      backgroundColor: '#ffffff',
+                    }}
                     value={qty || ''}
                     placeholder="0"
                     onChange={(e) => {
@@ -490,15 +482,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   <button
                     type="button"
                     className="step-btn step-plus"
-                    style={
-                      isTileSelected
-                        ? {
-                            backgroundColor: activeCityTheme.primary,
-                            borderColor: activeCityTheme.primary,
-                            color: '#ffffff',
-                          }
-                        : undefined
-                    }
+                    style={{
+                      backgroundColor: isTileSelected ? activeCityTheme.primary : activeCityTheme.light,
+                      borderColor: isTileSelected ? activeCityTheme.primary : activeCityTheme.boxBorder,
+                      color: isTileSelected ? '#ffffff' : activeCityTheme.primary,
+                    }}
                     onClick={() => updateQuantity(selectedCityId, numberType, num, 1)}
                   >
                     <Plus size={11} />

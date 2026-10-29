@@ -66,18 +66,42 @@ export interface CityColorTheme {
   border: string;
   text: string;
   badgeBg: string;
+  boxBg: string;
+  boxBorder: string;
+  boxHover: string;
+}
+
+export function generateHslCityTheme(hue: number): CityColorTheme {
+  const h = Math.round(((hue % 360) + 360) % 360);
+  return {
+    primary: `hsl(${h}, 78%, 46%)`,
+    light: `hsl(${h}, 85%, 96%)`,
+    border: `hsl(${h}, 65%, 80%)`,
+    text: `hsl(${h}, 82%, 32%)`,
+    badgeBg: `hsl(${h}, 80%, 90%)`,
+    boxBg: `hsl(${h}, 60%, 98.2%)`,
+    boxBorder: `hsl(${h}, 50%, 86%)`,
+    boxHover: `hsl(${h}, 55%, 93%)`,
+  };
 }
 
 export const CITY_PALETTES: CityColorTheme[] = [
-  { primary: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', badgeBg: '#dbeafe' }, // Blue (Hyderabad/Rahul)
-  { primary: '#059669', light: '#ecfdf5', border: '#a7f3d0', text: '#047857', badgeBg: '#d1fae5' }, // Emerald (Delhi/Gelhi)
-  { primary: '#7c3aed', light: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9', badgeBg: '#ede9fe' }, // Purple (Mumbai)
-  { primary: '#d97706', light: '#fffbeb', border: '#fde68a', text: '#b45309', badgeBg: '#fef3c7' }, // Amber (Kolkata)
-  { primary: '#e11d48', light: '#fff1f2', border: '#fecdd3', text: '#be123c', badgeBg: '#ffe4e6' }, // Rose (Chennai)
-  { primary: '#0d9488', light: '#f0fdfa', border: '#99f6e4', text: '#0f766e', badgeBg: '#ccfbf1' }, // Teal (Bengaluru)
-  { primary: '#4f46e5', light: '#eef2ff', border: '#c7d2fe', text: '#4338ca', badgeBg: '#e0e7ff' }, // Indigo
-  { primary: '#c026d3', light: '#fdf4ff', border: '#f5d0fe', text: '#a21caf', badgeBg: '#fae8ff' }, // Fuchsia
-  { primary: '#0284c7', light: '#f0f9ff', border: '#bae6fd', text: '#0369a1', badgeBg: '#e0f2fe' }, // Sky
+  { primary: '#2563eb', light: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', badgeBg: '#dbeafe', boxBg: '#f8faff', boxBorder: '#bfdbfe', boxHover: '#eff6ff' }, // 0: Blue (Hyderabad/Rahul)
+  { primary: '#059669', light: '#ecfdf5', border: '#a7f3d0', text: '#047857', badgeBg: '#d1fae5', boxBg: '#f6fdf9', boxBorder: '#a7f3d0', boxHover: '#ecfdf5' }, // 1: Emerald (Delhi/Gelhi)
+  { primary: '#7c3aed', light: '#f5f3ff', border: '#ddd6fe', text: '#6d28d9', badgeBg: '#ede9fe', boxBg: '#faf8ff', boxBorder: '#ddd6fe', boxHover: '#f5f3ff' }, // 2: Purple (Mumbai)
+  { primary: '#d97706', light: '#fffbeb', border: '#fde68a', text: '#b45309', badgeBg: '#fef3c7', boxBg: '#fffdf5', boxBorder: '#fde68a', boxHover: '#fffbeb' }, // 3: Amber (Kolkata)
+  { primary: '#e11d48', light: '#fff1f2', border: '#fecdd3', text: '#be123c', badgeBg: '#ffe4e6', boxBg: '#fff7f8', boxBorder: '#fecdd3', boxHover: '#fff1f2' }, // 4: Rose (Chennai)
+  { primary: '#0d9488', light: '#f0fdfa', border: '#99f6e4', text: '#0f766e', badgeBg: '#ccfbf1', boxBg: '#f4fcfb', boxBorder: '#99f6e4', boxHover: '#f0fdfa' }, // 5: Teal (Bengaluru)
+  { primary: '#4f46e5', light: '#eef2ff', border: '#c7d2fe', text: '#4338ca', badgeBg: '#e0e7ff', boxBg: '#f8f9ff', boxBorder: '#c7d2fe', boxHover: '#eef2ff' }, // 6: Indigo
+  { primary: '#c026d3', light: '#fdf4ff', border: '#f5d0fe', text: '#a21caf', badgeBg: '#fae8ff', boxBg: '#fdf7ff', boxBorder: '#f5d0fe', boxHover: '#fdf4ff' }, // 7: Fuchsia
+  { primary: '#0284c7', light: '#f0f9ff', border: '#bae6fd', text: '#0369a1', badgeBg: '#e0f2fe', boxBg: '#f6fbfe', boxBorder: '#bae6fd', boxHover: '#f0f9ff' }, // 8: Sky
+  { primary: '#ea580c', light: '#fff7ed', border: '#fed7aa', text: '#c2410c', badgeBg: '#ffedd5', boxBg: '#fffaf5', boxBorder: '#fed7aa', boxHover: '#fff7ed' }, // 9: Deep Orange
+  { primary: '#65a30d', light: '#f7fee7', border: '#d9f99d', text: '#4d7c0f', badgeBg: '#ecfccb', boxBg: '#fbfef5', boxBorder: '#d9f99d', boxHover: '#f7fee7' }, // 10: Lime
+  { primary: '#9333ea', light: '#faf5ff', border: '#e9d5ff', text: '#7e22ce', badgeBg: '#f3e8ff', boxBg: '#fdfbff', boxBorder: '#e9d5ff', boxHover: '#faf5ff' }, // 11: Violet
+  { primary: '#dc2626', light: '#fef2f2', border: '#fecaca', text: '#b91c1c', badgeBg: '#fee2e2', boxBg: '#fff8f8', boxBorder: '#fecaca', boxHover: '#fef2f2' }, // 12: Crimson
+  { primary: '#0891b2', light: '#ecfeff', border: '#a5f3fc', text: '#0e7490', badgeBg: '#cffafe', boxBg: '#f5fdfd', boxBorder: '#a5f3fc', boxHover: '#ecfeff' }, // 13: Cyan
+  { primary: '#ca8a04', light: '#fefce8', border: '#fef08a', text: '#a16207', badgeBg: '#fef9c3', boxBg: '#fffef6', boxBorder: '#fef08a', boxHover: '#fefce8' }, // 14: Yellow Ochre
+  { primary: '#db2777', light: '#fdf2f8', border: '#fbcfe8', text: '#be185d', badgeBg: '#fce7f3', boxBg: '#fdf7fa', boxBorder: '#fbcfe8', boxHover: '#fdf2f8' }, // 15: Deep Pink
 ];
 
 export function getCityColorTheme(cityIdOrIndex: string | number, cities?: City[]): CityColorTheme {
@@ -89,14 +113,38 @@ export function getCityColorTheme(cityIdOrIndex: string | number, cities?: City[
     if (foundIdx >= 0) {
       idx = foundIdx;
     } else {
-      const match = String(cityIdOrIndex).match(/\d+/);
-      if (match) idx = parseInt(match[0], 10);
+      // Deterministic hash of string ID if not directly matched in array
+      let hash = 0;
+      const str = String(cityIdOrIndex);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      idx = Math.abs(hash);
     }
   } else {
     const match = String(cityIdOrIndex).match(/\d+/);
-    if (match) idx = parseInt(match[0], 10);
+    if (match) {
+      idx = parseInt(match[0], 10);
+    } else {
+      let hash = 0;
+      const str = String(cityIdOrIndex);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      idx = Math.abs(hash);
+    }
   }
-  return CITY_PALETTES[Math.abs(idx) % CITY_PALETTES.length];
+
+  // Use curated palettes for the first 16 cities; for 17+ (or any dynamically added future city),
+  // use golden-angle distribution (137.508 deg step) guaranteeing maximum color separation and zero collision!
+  if (idx < CITY_PALETTES.length) {
+    return CITY_PALETTES[idx];
+  }
+
+  const goldenHue = Math.round((idx * 137.507764) % 360);
+  return generateHslCityTheme(goldenHue);
 }
 
 
