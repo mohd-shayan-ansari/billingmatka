@@ -613,7 +613,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
           <div className="all-cities-input-group">
             <input
               type="text"
-              placeholder={allCityType === 2 ? '35' : '7'}
+              placeholder={allCityType === 2 ? '00-99' : '0-9'}
               maxLength={allCityType === 2 ? 2 : 1}
               value={allCityNumber}
               onChange={(e) => setAllCityNumber(e.target.value.replace(/\D/g, ''))}
@@ -655,7 +655,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             >
               <Sparkles size={14} />
               <span>
-                Add #{allCityNumber || '...'} to All {enabledCities.length} Cities
+                Add {allCityNumber ? `#${allCityNumber} ` : ''}to All {enabledCities.length} Cities
               </span>
             </button>
           </div>
