@@ -83,6 +83,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   const [showPrevResultsPanel, setShowPrevResultsPanel] = useState<boolean>(false);
   const [manualResultMode, setManualResultMode] = useState<boolean>(false);
   const [repeatUnits, setRepeatUnits] = useState<number>(1);
+  const [repeatScope, setRepeatScope] = useState<'both' | 'double' | 'single'>('both');
   const [manualSlotResults, setManualSlotResults] = useState<
     Record<string, { number: string; type: 1 | 2 }>
   >({});
@@ -353,8 +354,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     return results.filter((r) => r.date === todayStr && r.slot === selectedPrevSlot);
   }, [results, selectedPrevSlot]);
 
-  // Repeat declared results of selected slot to current bill draft
-  const handleRepeatSlotResults = (unitsToBuy: number = 1) => {
+  // Repeat declared results of selected slot to current bill draft (with Tens-Digit rule and Double/Single/Both selector)
+  const handleRepeatSlotResults = (
+    unitsToBuy: number = 1,
+    scope: 'both' | 'double' | 'single' = repeatScope
+  ) => {
     if (slotDeclaredResults.length === 0) {
       alert('No declared results found for this slot.');
       return;
@@ -364,9 +368,24 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       const nextState = { ...prev };
       slotDeclaredResults.forEach((r) => {
         const num = String(r.number).trim();
-        const formattedNum = r.type === 2 ? num.padStart(2, '0') : num;
-        const key = `${r.cityId}|${r.type}|${formattedNum}`;
-        nextState[key] = (nextState[key] || 0) + unitsToBuy;
+        if (r.type === 2) {
+          const doubleNum = num.padStart(2, '0');
+          const singleNum = doubleNum.charAt(0); // Tens digit rule: 35 -> 3, 57 -> 5
+
+          if (scope === 'both' || scope === 'double') {
+            const key2D = `${r.cityId}|2|${doubleNum}`;
+            nextState[key2D] = (nextState[key2D] || 0) + unitsToBuy;
+          }
+          if (scope === 'both' || scope === 'single') {
+            const key1D = `${r.cityId}|1|${singleNum}`;
+            nextState[key1D] = (nextState[key1D] || 0) + unitsToBuy;
+          }
+        } else {
+          if (scope === 'both' || scope === 'single') {
+            const key1D = `${r.cityId}|1|${num}`;
+            nextState[key1D] = (nextState[key1D] || 0) + unitsToBuy;
+          }
+        }
       });
       try {
         localStorage.setItem('luckyDesk_billDraft', JSON.stringify(nextState));
@@ -374,8 +393,14 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       return nextState;
     });
 
+    const scopeLabel =
+      scope === 'both'
+        ? 'Both (2D & 1D Tens)'
+        : scope === 'double'
+        ? 'Double Only (2D)'
+        : 'Single Only (1D)';
     setStatusMessage(
-      `Loaded previous slot (${fmtTime(selectedPrevSlot)}) results into cart (${unitsToBuy} unit each)!`
+      `Loaded ${scopeLabel} from slot ${fmtTime(selectedPrevSlot)} into cart (${unitsToBuy} unit each)!`
     );
     setTimeout(() => setStatusMessage(''), 3000);
   };
@@ -383,7 +408,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   // Load manual results into cart (and optionally save as declared result)
   const handleLoadManualResultsToCart = (
     unitsToBuy: number = 1,
-    saveAsResult: boolean = false
+    saveAsResult: boolean = false,
+    scope: 'both' | 'double' | 'single' = repeatScope
   ) => {
     const entries = Object.entries(manualSlotResults).filter(
       ([_, val]) => val && val.number && val.number.trim()
@@ -398,9 +424,24 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       const nextState = { ...prev };
       entries.forEach(([cityId, val]) => {
         const num = val.number.trim();
-        const formattedNum = val.type === 2 ? num.padStart(2, '0') : num;
-        const key = `${cityId}|${val.type}|${formattedNum}`;
-        nextState[key] = (nextState[key] || 0) + unitsToBuy;
+        if (val.type === 2) {
+          const doubleNum = num.padStart(2, '0');
+          const singleNum = doubleNum.charAt(0); // Tens digit rule: 35 -> 3, 57 -> 5
+
+          if (scope === 'both' || scope === 'double') {
+            const key2D = `${cityId}|2|${doubleNum}`;
+            nextState[key2D] = (nextState[key2D] || 0) + unitsToBuy;
+          }
+          if (scope === 'both' || scope === 'single') {
+            const key1D = `${cityId}|1|${singleNum}`;
+            nextState[key1D] = (nextState[key1D] || 0) + unitsToBuy;
+          }
+        } else {
+          if (scope === 'both' || scope === 'single') {
+            const key1D = `${cityId}|1|${num}`;
+            nextState[key1D] = (nextState[key1D] || 0) + unitsToBuy;
+          }
+        }
       });
       try {
         localStorage.setItem('luckyDesk_billDraft', JSON.stringify(nextState));
@@ -412,24 +453,62 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       const todayStr = today();
       entries.forEach(([cityId, val]) => {
         const num = val.number.trim();
-        const formattedNum = val.type === 2 ? num.padStart(2, '0') : num;
-        const newRes: Result = {
-          date: todayStr,
-          slot: selectedPrevSlot,
-          cityId,
-          cityName: cityMap[cityId] || 'City',
-          type: val.type,
-          number: formattedNum,
-          prizePerUnit: val.type === 1 ? 95 : 950,
-          totalPrize: 0,
-          winners: [],
-        };
-        onResultDeclared(newRes);
+        if (val.type === 2) {
+          const doubleNum = num.padStart(2, '0');
+          const singleNum = doubleNum.charAt(0);
+
+          // Declare 2D result (₹950/unit)
+          const newRes2D: Result = {
+            date: todayStr,
+            slot: selectedPrevSlot,
+            cityId,
+            cityName: cityMap[cityId] || 'City',
+            type: 2,
+            number: doubleNum,
+            prizePerUnit: 950,
+            totalPrize: 0,
+            winners: [],
+          };
+          onResultDeclared(newRes2D);
+
+          // Auto declare 1D result with tens digit (₹95/unit)
+          const newRes1D: Result = {
+            date: todayStr,
+            slot: selectedPrevSlot,
+            cityId,
+            cityName: cityMap[cityId] || 'City',
+            type: 1,
+            number: singleNum,
+            prizePerUnit: 95,
+            totalPrize: 0,
+            winners: [],
+          };
+          onResultDeclared(newRes1D);
+        } else {
+          const newRes: Result = {
+            date: todayStr,
+            slot: selectedPrevSlot,
+            cityId,
+            cityName: cityMap[cityId] || 'City',
+            type: 1,
+            number: num,
+            prizePerUnit: 95,
+            totalPrize: 0,
+            winners: [],
+          };
+          onResultDeclared(newRes);
+        }
       });
     }
 
+    const scopeLabel =
+      scope === 'both'
+        ? 'Both (2D & 1D)'
+        : scope === 'double'
+        ? 'Double Only (2D)'
+        : 'Single Only (1D)';
     setStatusMessage(
-      `Loaded ${entries.length} items from slot ${fmtTime(selectedPrevSlot)} into cart!`
+      `Loaded ${scopeLabel} from slot ${fmtTime(selectedPrevSlot)} into cart!`
     );
     setTimeout(() => setStatusMessage(''), 3000);
   };
@@ -755,30 +834,135 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     <div className="prev-results-grid">
                       {slotDeclaredResults.map((r, i) => {
                         const cTheme = getCityColorTheme(r.cityId, cities);
+                        const is2D = r.type === 2;
+                        const doubleNum = String(r.number).trim().padStart(2, '0');
+                        const tensDigit = doubleNum.charAt(0);
+
                         return (
-                          <div key={i} className="prev-result-item">
-                            <span
+                          <div
+                            key={i}
+                            className="prev-result-item"
+                            style={{
+                              flexDirection: 'column',
+                              alignItems: 'flex-start',
+                              gap: 2,
+                            }}
+                          >
+                            <div
                               style={{
-                                fontSize: 11,
-                                fontWeight: 700,
-                                color: cTheme.primary,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                                alignItems: 'center',
                               }}
                             >
-                              {cityMap[r.cityId] || r.cityName}
-                            </span>
-                            <span
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  color: cTheme.primary,
+                                }}
+                              >
+                                {cityMap[r.cityId] || r.cityName}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 10,
+                                  color: 'var(--text-muted)',
+                                }}
+                              >
+                                {is2D ? '2D & Tens' : '1D'}
+                              </span>
+                            </div>
+                            <div
                               style={{
-                                fontFamily: 'monospace',
-                                fontWeight: 800,
-                                fontSize: 14,
-                                color: '#1e293b',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
                               }}
                             >
-                              #{r.number} ({r.type === 2 ? '2D' : '1D'})
-                            </span>
+                              <span
+                                style={{
+                                  fontFamily: 'monospace',
+                                  fontWeight: 800,
+                                  fontSize: 14,
+                                  color: '#1e293b',
+                                }}
+                              >
+                                #{r.number}
+                              </span>
+                              {is2D && (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: '#059669',
+                                    background: '#ecfdf5',
+                                    border: '1px solid #a7f3d0',
+                                    padding: '1px 5px',
+                                    borderRadius: 4,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  Tens (1D): #{tensDigit}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
+                    </div>
+
+                    {/* Scope Selector: Double, Single, or Both */}
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: 'var(--text-main)',
+                        }}
+                      >
+                        Repeat Selection:
+                      </span>
+                      <div className="type-toggle-mini" style={{ margin: 0 }}>
+                        <button
+                          type="button"
+                          className={`toggle-mini-btn ${
+                            repeatScope === 'both' ? 'active' : ''
+                          }`}
+                          style={{ padding: '3px 9px', fontSize: 11 }}
+                          onClick={() => setRepeatScope('both')}
+                        >
+                          Both (2D + Tens 1D)
+                        </button>
+                        <button
+                          type="button"
+                          className={`toggle-mini-btn ${
+                            repeatScope === 'double' ? 'active' : ''
+                          }`}
+                          style={{ padding: '3px 9px', fontSize: 11 }}
+                          onClick={() => setRepeatScope('double')}
+                        >
+                          Double Only (2D)
+                        </button>
+                        <button
+                          type="button"
+                          className={`toggle-mini-btn ${
+                            repeatScope === 'single' ? 'active' : ''
+                          }`}
+                          style={{ padding: '3px 9px', fontSize: 11 }}
+                          onClick={() => setRepeatScope('single')}
+                        >
+                          Single Only (1D)
+                        </button>
+                      </div>
                     </div>
 
                     <div
@@ -813,10 +997,18 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                         type="button"
                         className="btn-primary"
                         style={{ padding: '6px 14px', fontSize: 12 }}
-                        onClick={() => handleRepeatSlotResults(repeatUnits)}
+                        onClick={() => handleRepeatSlotResults(repeatUnits, repeatScope)}
                       >
                         <RotateCcw size={14} />
-                        <span>Repeat {slotDeclaredResults.length} Results to Cart</span>
+                        <span>
+                          Repeat {slotDeclaredResults.length} Results (
+                          {repeatScope === 'both'
+                            ? 'Both 2D & 1D'
+                            : repeatScope === 'double'
+                            ? '2D Only'
+                            : '1D Tens Only'}
+                          )
+                        </span>
                       </button>
                     </div>
                   </>
@@ -875,6 +1067,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   {enabledCities.map((c) => {
                     const val = manualSlotResults[c.id] || { number: '', type: 2 };
                     const cTheme = getCityColorTheme(c.id, cities);
+                    const clean = (val.number || '').trim();
+                    const tens =
+                      val.type === 2 && clean.length > 0
+                        ? clean.padStart(2, '0').charAt(0)
+                        : '';
 
                     return (
                       <div key={c.id} className="prev-manual-city-field">
@@ -928,18 +1125,85 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                           maxLength={val.type === 2 ? 2 : 1}
                           value={val.number}
                           onChange={(e) => {
-                            const clean = e.target.value.replace(/\D/g, '');
+                            const cleanInput = e.target.value.replace(/\D/g, '');
                             setManualSlotResults((prev) => ({
                               ...prev,
-                              [c.id]: { ...(prev[c.id] || { type: 2 }), number: clean },
+                              [c.id]: { ...(prev[c.id] || { type: 2 }), number: cleanInput },
                             }));
                           }}
                           className="prev-manual-city-input"
                           style={{ borderColor: cTheme.border }}
                         />
+
+                        {val.type === 2 && tens && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: '#059669',
+                              fontWeight: 700,
+                              marginTop: 2,
+                              textAlign: 'center',
+                            }}
+                          >
+                            Tens (1D): #{tens}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Scope selector for Manual Load: Both, Double, or Single */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginTop: 10,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: 'var(--text-main)',
+                    }}
+                  >
+                    Items to Load:
+                  </span>
+                  <div className="type-toggle-mini" style={{ margin: 0 }}>
+                    <button
+                      type="button"
+                      className={`toggle-mini-btn ${
+                        repeatScope === 'both' ? 'active' : ''
+                      }`}
+                      style={{ padding: '3px 9px', fontSize: 11 }}
+                      onClick={() => setRepeatScope('both')}
+                    >
+                      Both (2D + Tens 1D)
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-mini-btn ${
+                        repeatScope === 'double' ? 'active' : ''
+                      }`}
+                      style={{ padding: '3px 9px', fontSize: 11 }}
+                      onClick={() => setRepeatScope('double')}
+                    >
+                      Double Only (2D)
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-mini-btn ${
+                        repeatScope === 'single' ? 'active' : ''
+                      }`}
+                      style={{ padding: '3px 9px', fontSize: 11 }}
+                      onClick={() => setRepeatScope('single')}
+                    >
+                      Single Only (1D)
+                    </button>
+                  </div>
                 </div>
 
                 <div
@@ -947,7 +1211,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
-                    marginTop: 8,
+                    marginTop: 10,
                     flexWrap: 'wrap',
                   }}
                 >
@@ -972,21 +1236,33 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     type="button"
                     className="btn-primary"
                     style={{ padding: '6px 12px', fontSize: 12 }}
-                    onClick={() => handleLoadManualResultsToCart(repeatUnits, false)}
+                    onClick={() =>
+                      handleLoadManualResultsToCart(repeatUnits, false, repeatScope)
+                    }
                   >
                     <Plus size={14} />
-                    <span>Load into Cart (Purchase Now)</span>
+                    <span>
+                      Load into Cart (
+                      {repeatScope === 'both'
+                        ? '2D & 1D'
+                        : repeatScope === 'double'
+                        ? '2D Only'
+                        : '1D Only'}
+                      )
+                    </span>
                   </button>
 
                   <button
                     type="button"
                     className="btn-secondary"
                     style={{ padding: '6px 12px', fontSize: 12 }}
-                    onClick={() => handleLoadManualResultsToCart(repeatUnits, true)}
-                    title="Also records this as the official result in the system"
+                    onClick={() =>
+                      handleLoadManualResultsToCart(repeatUnits, true, repeatScope)
+                    }
+                    title="Also records this as the official result in the system (2D & 1D tens digit)"
                   >
                     <Trophy size={14} className="text-amber" />
-                    <span>Save as Result & Load to Cart</span>
+                    <span>Save Result & Load to Cart</span>
                   </button>
                 </div>
               </div>

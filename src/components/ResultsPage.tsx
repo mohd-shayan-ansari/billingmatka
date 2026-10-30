@@ -147,47 +147,137 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       return;
     }
 
-    const tempResult: Result = {
-      date: todayStr,
-      slot: selectedSlot,
-      cityId: selectedCityId,
-      cityName: cityMap[selectedCityId] || 'City',
-      type: resultType,
-      number: winningNumber,
-      prizePerUnit,
-      totalPrize: 0,
-      winners: [],
-    };
+    if (resultType === 2) {
+      // Tens digit rule: entering double-digit (e.g. 35) means single-digit is tens digit (e.g. 3)
+      const tensDigit = String(winningNumber).padStart(2, '0').charAt(0);
 
-    const winners = getWinnersForResult(tempResult);
-    const totalPrize = winners.reduce((s, w) => s + w.prize, 0);
+      // 1. Declare 2D result (₹950/unit)
+      const tempResult2D: Result = {
+        date: todayStr,
+        slot: selectedSlot,
+        cityId: selectedCityId,
+        cityName: cityMap[selectedCityId] || 'City',
+        type: 2,
+        number: winningNumber,
+        prizePerUnit: prizePerUnit || 950,
+        totalPrize: 0,
+        winners: [],
+      };
+      const winners2D = getWinnersForResult(tempResult2D);
+      const totalPrize2D = winners2D.reduce((s, w) => s + w.prize, 0);
+      const newResult2D: Result = {
+        ...tempResult2D,
+        totalPrize: totalPrize2D,
+        winners: winners2D,
+      };
+      onResultDeclared(newResult2D);
 
-    const newResult: Result = {
-      ...tempResult,
-      totalPrize,
-      winners,
-    };
+      // 2. Automatically declare 1D result using Tens Digit (₹95/unit)
+      const tempResult1D: Result = {
+        date: todayStr,
+        slot: selectedSlot,
+        cityId: selectedCityId,
+        cityName: cityMap[selectedCityId] || 'City',
+        type: 1,
+        number: tensDigit,
+        prizePerUnit: 95,
+        totalPrize: 0,
+        winners: [],
+      };
+      const winners1D = getWinnersForResult(tempResult1D);
+      const totalPrize1D = winners1D.reduce((s, w) => s + w.prize, 0);
+      const newResult1D: Result = {
+        ...tempResult1D,
+        totalPrize: totalPrize1D,
+        winners: winners1D,
+      };
+      onResultDeclared(newResult1D);
 
-    onResultDeclared(newResult);
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch {
+        // ignore
+      }
 
-    try {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    } catch {
-      // ignore
+      setMessage(
+        `Results declared! 2D #${winningNumber} (${winners2D.length} winners, ${money(totalPrize2D)}) & 1D #${tensDigit} (${winners1D.length} winners, ${money(totalPrize1D)}).`
+      );
+    } else {
+      // 1D result manual declaration
+      const tempResult: Result = {
+        date: todayStr,
+        slot: selectedSlot,
+        cityId: selectedCityId,
+        cityName: cityMap[selectedCityId] || 'City',
+        type: 1,
+        number: winningNumber,
+        prizePerUnit: prizePerUnit || 95,
+        totalPrize: 0,
+        winners: [],
+      };
+
+      const winners = getWinnersForResult(tempResult);
+      const totalPrize = winners.reduce((s, w) => s + w.prize, 0);
+
+      const newResult: Result = {
+        ...tempResult,
+        totalPrize,
+        winners,
+      };
+
+      onResultDeclared(newResult);
+
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+        });
+      } catch {
+        // ignore
+      }
+
+      setMessage(
+        `Result declared! Winning 1D #${winningNumber}. Matching bills: ${winners.length}. Total prize: ${money(totalPrize)}.`
+      );
     }
-
-    setMessage(
-      `Result declared! Winning #: ${winningNumber}. Matching bills: ${winners.length}. Total prize: ${money(totalPrize)}.`
-    );
   };
 
-  // Filtered & processed draw results with dynamic winner detection
+  // Filtered & processed draw results with dynamic winner detection & tens-digit derivation
   const processedResults = useMemo(() => {
-    return results.map((r) => {
+    // If a 2D result exists in results, ensure its tens digit 1D result is also present in the active list
+    const augmentedResults: Result[] = [...results];
+    results.forEach((r) => {
+      if (r.type === 2) {
+        const tensDigit = String(r.number).padStart(2, '0').charAt(0);
+        const has1D = results.some(
+          (other) =>
+            other.date === r.date &&
+            other.slot === r.slot &&
+            other.cityId === r.cityId &&
+            other.type === 1
+        );
+        if (!has1D) {
+          augmentedResults.push({
+            date: r.date,
+            slot: r.slot,
+            cityId: r.cityId,
+            cityName: r.cityName,
+            type: 1,
+            number: tensDigit,
+            prizePerUnit: 95,
+            totalPrize: 0,
+            winners: [],
+          });
+        }
+      }
+    });
+
+    return augmentedResults.map((r) => {
       const winners = getWinnersForResult(
         r,
         role === 'counter' ? currentCounter : undefined
@@ -364,6 +454,28 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                 className="form-input"
               />
             </div>
+
+            {resultType === 2 && (
+              <div
+                style={{
+                  gridColumn: '1 / -1',
+                  padding: '10px 14px',
+                  background: '#f0fdf4',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: '#166534',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <Sparkles size={16} className="text-emerald" />
+                <span>
+                  <b>Tens Digit Rule:</b> Declaring 2-Digit <b>#{winningNumber}</b> will also automatically declare Single-Digit <b>#{winningNumber.padStart(2, '0').charAt(0)}</b> (tens digit) with <b>₹95/unit</b> prize payout.
+                </span>
+              </div>
+            )}
           </div>
 
           <button
@@ -643,7 +755,10 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                           {cityMap[r.cityId] || r.cityName}
                         </div>
                         <div className="result-time-slot">
-                          {fmtTime(r.slot)} · {r.date} · {r.type === 2 ? '00–99' : '0-9'}
+                          {fmtTime(r.slot)} · {r.date} ·{' '}
+                          {r.type === 2
+                            ? `2D #${r.number} (Tens: #${String(r.number).padStart(2, '0').charAt(0)})`
+                            : `1D Single #${r.number}`}
                         </div>
                       </div>
                     </div>
