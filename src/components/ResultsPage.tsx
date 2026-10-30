@@ -41,7 +41,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   const [selectedCityId, setSelectedCityId] = useState<string>(cities[0]?.id || 'c0');
   const [resultType, setResultType] = useState<1 | 2>(2);
   const [winningNumber, setWinningNumber] = useState<string>('00');
-  const [prizePerUnit, setPrizePerUnit] = useState<number>(90);
+  const [prizePerUnit, setPrizePerUnit] = useState<number>(950);
   const [message, setMessage] = useState<string>('');
 
   // Filters for viewing history
@@ -67,6 +67,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
   const handleTypeChange = (type: 1 | 2) => {
     setResultType(type);
     setWinningNumber(type === 2 ? '00' : '0');
+    setPrizePerUnit(type === 2 ? 950 : 95);
   };
 
   /**
@@ -110,12 +111,13 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
       }
 
       if (winUnits > 0) {
+        const unitPrize = r.prizePerUnit || (r.type === 1 ? 95 : 950);
         winnersList.push({
           receipt: b.receipt,
           counter: b.counter,
           amount: b.amount,
           units: winUnits,
-          prize: winUnits * (r.prizePerUnit || 90),
+          prize: winUnits * unitPrize,
           customer: b.customer,
         });
       }
@@ -353,7 +355,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             </div>
 
             <div className="form-field full-width">
-              <label>Prize Payout per Winning Unit (₹)</label>
+              <label>Prize Payout per Winning Unit (₹) — Default {resultType === 2 ? '₹950' : '₹95'}</label>
               <input
                 type="number"
                 min="0"
@@ -664,7 +666,9 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                       ) : (
                         <>
                           <div className="result-total-prize">{money(r.totalPrize)}</div>
-                          <div className="result-rate">{money(r.prizePerUnit)}/unit</div>
+                          <div className="result-rate">
+                            {money(r.prizePerUnit || (r.type === 1 ? 95 : 950))}/unit
+                          </div>
                         </>
                       )}
                     </div>
@@ -730,7 +734,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                         fontStyle: 'italic',
                       }}
                     >
-                      Rate: {money(r.prizePerUnit)}/unit · No winning tickets from {currentCounter}
+                      Rate: {money(r.prizePerUnit || (r.type === 1 ? 95 : 950))}/unit · No winning tickets from {currentCounter}
                     </div>
                   ) : (
                     <div className="no-winners-text">

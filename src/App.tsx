@@ -311,12 +311,14 @@ export function App() {
             cities={cities}
             settings={settings}
             bills={bills}
+            results={results}
             role={role}
             currentCounter={currentCounter}
             printerConfig={printerConfig}
             onBillCreated={handleBillCreated}
             onOpenReceiptModal={(b) => setModalBill(b)}
             onSwitchRole={() => setIsRoleModalOpen(true)}
+            onResultDeclared={handleResultDeclared}
           />
         )}
 
