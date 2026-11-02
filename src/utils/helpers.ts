@@ -147,6 +147,56 @@ export function getCityColorTheme(cityIdOrIndex: string | number, cities?: City[
   return generateHslCityTheme(goldenHue);
 }
 
+export const CITY_GRADIENTS: string[] = [
+  'linear-gradient(145deg, #0284c7 0%, #06b6d4 100%)', // 0: Sultan Puri / Sky Blue
+  'linear-gradient(145deg, #7c3aed 0%, #9333ea 100%)', // 1: Worli / Purple
+  'linear-gradient(145deg, #059669 0%, #10b981 100%)', // 2: Rajshri / Emerald
+  'linear-gradient(145deg, #ea580c 0%, #f59e0b 100%)', // 3: Charminar / Orange Amber
+  'linear-gradient(145deg, #e11d48 0%, #f43f5e 100%)', // 4: Bhagya Rekha / Crimson Rose
+  'linear-gradient(145deg, #4f46e5 0%, #6366f1 100%)', // 5: Peshawar / Indigo
+  'linear-gradient(145deg, #0d9488 0%, #14b8a6 100%)', // 6: Teal
+  'linear-gradient(145deg, #c026d3 0%, #d946ef 100%)', // 7: Fuchsia
+  'linear-gradient(145deg, #2563eb 0%, #3b82f6 100%)', // 8: Royal Blue
+  'linear-gradient(145deg, #ca8a04 0%, #eab308 100%)', // 9: Golden Amber
+  'linear-gradient(145deg, #65a30d 0%, #84cc16 100%)', // 10: Lime
+  'linear-gradient(145deg, #dc2626 0%, #ef4444 100%)', // 11: Red
+  'linear-gradient(145deg, #0891b2 0%, #06b6d4 100%)', // 12: Cyan
+  'linear-gradient(145deg, #db2777 0%, #ec4899 100%)', // 13: Pink
+  'linear-gradient(145deg, #475569 0%, #64748b 100%)', // 14: Slate
+  'linear-gradient(145deg, #854d0e 0%, #a16207 100%)', // 15: Bronze
+];
+
+export function getCityGradient(cityIdOrIndex: string | number, cities?: City[]): string {
+  let idx = 0;
+  if (typeof cityIdOrIndex === 'number') {
+    idx = cityIdOrIndex;
+  } else if (cities && cities.length > 0) {
+    const foundIdx = cities.findIndex((c) => c.id === cityIdOrIndex);
+    if (foundIdx >= 0) {
+      idx = foundIdx;
+    } else {
+      let hash = 0;
+      const str = String(cityIdOrIndex);
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      idx = Math.abs(hash);
+    }
+  } else {
+    const match = String(cityIdOrIndex).match(/\d+/);
+    idx = match ? parseInt(match[0], 10) : 0;
+  }
+
+  if (idx < CITY_GRADIENTS.length) {
+    return CITY_GRADIENTS[idx];
+  }
+
+  const goldenHue = Math.round((idx * 137.507764) % 360);
+  const nextHue = (goldenHue + 28) % 360;
+  return `linear-gradient(145deg, hsl(${goldenHue}, 80%, 46%) 0%, hsl(${nextHue}, 85%, 55%) 100%)`;
+}
+
 
 export const INITIAL_CITIES: City[] = [
   'Hyderabad',

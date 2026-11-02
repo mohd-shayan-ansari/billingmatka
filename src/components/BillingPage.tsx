@@ -18,6 +18,8 @@ import {
   X,
   Trophy,
   Layers,
+  ArrowLeft,
+  Calendar,
 } from 'lucide-react';
 import type { Bill, City, PrinterConfig, Result, Settings, UserRole } from '../types';
 import {
@@ -29,6 +31,7 @@ import {
   timeSlots,
   fmtTime,
   getCityColorTheme,
+  getCityGradient,
 } from '../utils/helpers';
 import {
   printBill,
@@ -73,6 +76,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   const [customerName, setCustomerName] = useState<string>('');
   const [selectedCounter, setSelectedCounter] = useState<string>(currentCounter);
   const [statusMessage, setStatusMessage] = useState<string>('');
+
+  // Counter User Flow: 'cities' (Big City Blocks + Complete Chart) vs 'items' (Number Grid Page)
+  const [screenView, setScreenView] = useState<'cities' | 'items'>('cities');
+  const [chartDate, setChartDate] = useState<string>(today());
+  const [showCartDrawer, setShowCartDrawer] = useState<boolean>(false);
 
   // All Cities Quick-Addition State
   const [allCityNumber, setAllCityNumber] = useState<string>('');
@@ -354,6 +362,109 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     return results.filter((r) => r.date === todayStr && r.slot === selectedPrevSlot);
   }, [results, selectedPrevSlot]);
 
+  // Complete Chart data: Time slots breakdown of Sales and Prize payouts for this counter
+  const chartSlotsData = useMemo(() => {
+    const counterToMatch = role === 'admin' ? selectedCounter : currentCounter;
+
+    // Filter bills for the selected date & counter
+    const dateBills = bills.filter((b) => {
+      if (b.date !== chartDate) return false;
+      if (
+        counterToMatch &&
+        b.counter?.trim().toLowerCase() !== counterToMatch.trim().toLowerCase()
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    return allSlots.map((slot) => {
+      const slotBills = dateBills.filter((b) => b.slot === slot);
+      const slotSales = slotBills.reduce((sum, b) => sum + (b.amount || 0), 0);
+      const slotUnits = slotBills.reduce(
+        (sum, b) => sum + (b.unitsTotal || b.units || 0),
+        0
+      );
+
+      // Declared results for this slot on chartDate
+      const slotResults = results.filter(
+        (r) => r.date === chartDate && r.slot === slot
+      );
+
+      // Payouts for this counter's winning tickets in this slot
+      let slotPrize = 0;
+      let slotWinCount = 0;
+
+      slotResults.forEach((r) => {
+        const targetNum = String(r.number).trim();
+        slotBills.forEach((b) => {
+          let winUnits = 0;
+          if (b.items && b.items.length > 0) {
+            b.items.forEach((it) => {
+              if (
+                it.cityId === r.cityId &&
+                it.type === r.type &&
+                String(it.number).trim() === targetNum
+              ) {
+                winUnits += it.units;
+              }
+            });
+          } else {
+            if (
+              b.cityId === r.cityId &&
+              b.type === r.type &&
+              String(b.number).trim() === targetNum
+            ) {
+              winUnits += b.units || 1;
+            }
+          }
+          if (winUnits > 0) {
+            const unitPrize = r.prizePerUnit || (r.type === 1 ? 95 : 950);
+            slotPrize += winUnits * unitPrize;
+            slotWinCount += 1;
+          }
+        });
+      });
+
+      // City results mapping for this slot (both 2D and derived tens-digit 1D)
+      const cityResultsMap: Record<string, { num2D?: string; num1D?: string }> = {};
+      slotResults.forEach((r) => {
+        if (!cityResultsMap[r.cityId]) cityResultsMap[r.cityId] = {};
+        if (r.type === 2) {
+          const formatted = String(r.number).padStart(2, '0');
+          cityResultsMap[r.cityId].num2D = formatted;
+          cityResultsMap[r.cityId].num1D = formatted.charAt(0);
+        } else if (r.type === 1) {
+          cityResultsMap[r.cityId].num1D = String(r.number);
+        }
+      });
+
+      return {
+        slot,
+        sales: slotSales,
+        units: slotUnits,
+        prize: slotPrize,
+        wins: slotWinCount,
+        net: slotSales - slotPrize,
+        cityResults: cityResultsMap,
+      };
+    });
+  }, [allSlots, bills, results, chartDate, role, selectedCounter, currentCounter]);
+
+  const chartTotals = useMemo(() => {
+    return chartSlotsData.reduce(
+      (acc, s) => {
+        acc.sales += s.sales;
+        acc.units += s.units;
+        acc.prize += s.prize;
+        acc.wins += s.wins;
+        acc.net += s.net;
+        return acc;
+      },
+      { sales: 0, units: 0, prize: 0, wins: 0, net: 0 }
+    );
+  }, [chartSlotsData]);
+
   // Repeat declared results of selected slot to current bill draft (with Tens-Digit rule and Double/Single/Both selector)
   const handleRepeatSlotResults = (
     unitsToBuy: number = 1,
@@ -620,42 +731,273 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         </div>
       )}
 
-      {/* ENLARGED City Selection Buttons */}
-      <div className="city-selector-section">
-        <div className="city-chips-scroll">
-          {enabledCities.map((c) => {
-            const isSelected = c.id === selectedCityId;
-            const cTheme = getCityColorTheme(c.id, cities);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={`city-btn-large ${isSelected ? 'active' : ''}`}
-                style={{
-                  backgroundColor: isSelected ? cTheme.primary : '#ffffff',
-                  borderColor: isSelected ? cTheme.primary : cTheme.border,
-                  color: isSelected ? '#ffffff' : cTheme.text,
-                  boxShadow: isSelected
-                    ? `0 6px 16px ${cTheme.primary}40`
-                    : '0 1px 3px rgba(0, 0, 0, 0.04)',
-                }}
-                onClick={() => setSelectedCityId(c.id)}
-              >
-                <span
-                  className="city-btn-dot"
+      {screenView === 'cities' ? (
+        <div className="cities-hub-view">
+          {/* Floating / Sticky Cart Banner if Cart has Items */}
+          {selectedItems.length > 0 && (
+            <div className="cart-floating-banner">
+              <div className="cart-floating-info">
+                <span style={{ fontWeight: 800, fontSize: 13 }}>
+                  🛒 Cart: {selectedItems.length} Items ({totalUnits} Units)
+                </span>
+                <span style={{ color: '#34d399', fontWeight: 900, fontSize: 16 }}>
+                  Total: {money(totalAmount)}
+                </span>
+              </div>
+              <div className="cart-floating-actions">
+                <button
+                  type="button"
+                  className="btn-primary"
                   style={{
-                    backgroundColor: isSelected ? '#ffffff' : cTheme.primary,
+                    padding: '8px 14px',
+                    fontSize: 12,
+                    background: '#10b981',
+                    borderColor: '#10b981',
+                    fontWeight: 800,
                   }}
-                />
-                <span className="city-btn-name">{c.name}</span>
-                {isSelected && (
-                  <Check size={16} className="city-btn-check" strokeWidth={3} />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                  onClick={handleCreateBill}
+                  disabled={isLocked}
+                >
+                  <Printer size={15} />
+                  <span>Finalise & Print</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: 12,
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#ffffff',
+                    borderColor: 'rgba(255,255,255,0.2)',
+                  }}
+                  onClick={() => setShowCartDrawer(!showCartDrawer)}
+                >
+                  {showCartDrawer ? 'Hide Cart' : 'View Cart'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Expandable Cart Drawer on Cities Hub */}
+          {showCartDrawer && selectedItems.length > 0 && (
+            <div
+              className="selected-items-preview"
+              style={{
+                marginBottom: 16,
+                background: '#ffffff',
+                border: '1.5px solid var(--border-subtle)',
+                borderRadius: 16,
+                padding: 12,
+              }}
+            >
+              <div className="preview-header">
+                <div className="flex-row items-center gap-2">
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: 13 }}>
+                    Current Cart Items ({selectedItems.length})
+                  </span>
+                </div>
+                <button type="button" className="btn-text-danger" onClick={clearDraft}>
+                  <Trash2 size={12} />
+                  <span>Clear All</span>
+                </button>
+              </div>
+
+              <div className="selected-chips-row">
+                {selectedItems.map((it) => {
+                  const itTheme = getCityColorTheme(it.cityId, cities);
+                  return (
+                    <div
+                      key={`${it.cityId}-${it.type}-${it.number}`}
+                      className="item-chip"
+                      style={{ borderColor: itTheme.border }}
+                    >
+                      <span
+                        className="chip-city"
+                        style={{ backgroundColor: itTheme.primary, color: '#ffffff' }}
+                      >
+                        {it.cityName.slice(0, 3)}
+                      </span>
+                      <span style={{ fontSize: 9, color: '#64748b', fontWeight: 700 }}>
+                        {it.type === 2 ? '2D' : '1D'}
+                      </span>
+                      <b className="chip-num" style={{ color: itTheme.primary }}>
+                        #{it.number}
+                      </b>
+                      <div className="chip-stepper">
+                        <button
+                          type="button"
+                          className="chip-step-btn"
+                          onClick={() => updateQuantity(it.cityId, it.type, it.number, -1)}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          className="chip-qty-input"
+                          value={it.units}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            updateQuantity(it.cityId, it.type, it.number, isNaN(val) ? 0 : val, true);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="chip-step-btn"
+                          onClick={() => updateQuantity(it.cityId, it.type, it.number, 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span className="chip-amt">{money(it.amount)}</span>
+                      <button
+                        type="button"
+                        className="chip-remove"
+                        onClick={() => updateQuantity(it.cityId, it.type, it.number, 0, true)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Section Heading */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 12,
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: 'var(--text-main)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  margin: 0,
+                }}
+              >
+                Select City
+              </h2>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Click any city block to open number selection & purchase
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: 999,
+                background: '#f1f5f9',
+                color: '#475569',
+              }}
+            >
+              {enabledCities.length} Cities Active
+            </div>
+          </div>
+
+          {/* THE BIG CITY BLOCKS GRID (Matches User Photo) */}
+          <div className="big-city-grid">
+            {enabledCities.map((c) => {
+              const gradient = getCityGradient(c.id, cities);
+              const itemsForCity = selectedItems.filter((it) => it.cityId === c.id);
+              const unitsForCity = itemsForCity.reduce((sum, it) => sum + it.units, 0);
+              const hasCart = unitsForCity > 0;
+
+              // Latest declared result for this city today
+              const todayStr = today();
+              const cityRes2D = results.find(
+                (r) => r.date === todayStr && r.cityId === c.id && r.type === 2
+              );
+              const cityRes1D = results.find(
+                (r) => r.date === todayStr && r.cityId === c.id && r.type === 1
+              );
+              const latestResult = cityRes2D || cityRes1D;
+
+              return (
+                <div
+                  key={c.id}
+                  className={`big-city-card ${hasCart ? 'has-cart-items' : ''}`}
+                  style={{ background: gradient }}
+                  onClick={() => {
+                    setSelectedCityId(c.id);
+                    setScreenView('items');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  title={`Click to open ${c.name} items`}
+                >
+                  <div style={{ width: '100%' }}>
+                    <div className="big-city-title">{c.name}</div>
+                    <div className="big-city-slot-pill">{fmtTime(currentSlot)}</div>
+                  </div>
+
+                  <div className="big-city-center-box">
+                    {hasCart ? (
+                      <>
+                        <div className="big-city-num-text" style={{ color: '#fbbf24' }}>
+                          {itemsForCity.length === 1
+                            ? `#${itemsForCity[0].number}`
+                            : `${itemsForCity.length} Nos`}
+                        </div>
+                        <div className="big-city-cart-badge">{unitsForCity} Units Selected</div>
+                      </>
+                    ) : latestResult ? (
+                      <>
+                        <div className="big-city-num-text">
+                          {String(latestResult.number).padStart(latestResult.type === 2 ? 2 : 1, '0')}
+                        </div>
+                        <div style={{ fontSize: 9.5, color: '#a7f3d0', fontWeight: 700 }}>
+                          {latestResult.type === 2 ? '2-Digit' : '1-Digit'}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 800,
+                            color: '#ffffff',
+                            letterSpacing: '1px',
+                          }}
+                        >
+                          SELECT
+                        </div>
+                        <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>
+                          Tap to open
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="big-city-status-row">
+                    <span
+                      className="big-city-status-dot"
+                      style={{
+                        backgroundColor: hasCart ? '#10b981' : latestResult ? '#ffffff' : '#38bdf8',
+                        boxShadow: hasCart ? '0 0 8px #10b981' : 'none',
+                      }}
+                    />
+                    <span>
+                      {hasCart
+                        ? `${unitsForCity} Units in Cart`
+                        : latestResult
+                        ? 'Published'
+                        : 'Open for Billing'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
       {/* FEATURE 1: ALL CITIES QUICK-ENTRY BAR */}
       <div className="all-cities-bar">
@@ -1271,6 +1613,291 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         )}
       </div>
 
+          {/* COMPLETE CHART: TIME SLOTS, SALES & PRIZES PER SLOT (As Requested) */}
+          <div className="complete-chart-card">
+            <div className="complete-chart-header">
+              <div className="complete-chart-title-group">
+                <h3>Complete Chart</h3>
+                <div className="complete-chart-date">
+                  {new Date(chartDate + 'T00:00:00').toLocaleDateString('en-IN', {
+                    weekday: 'long',
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </div>
+              </div>
+
+              <div className="complete-chart-badges">
+                <input
+                  type="date"
+                  value={chartDate}
+                  onChange={(e) => setChartDate(e.target.value)}
+                  className="date-input"
+                  style={{
+                    background: '#1e293b',
+                    color: '#f8fafc',
+                    borderColor: '#334155',
+                    height: 32,
+                    fontSize: 12,
+                    borderRadius: 8,
+                  }}
+                />
+                <span className="chart-chip-live">
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      backgroundColor: '#34d399',
+                    }}
+                  />
+                  Live Sync
+                </span>
+                <span className="chart-chip-scroll">↔ Swipe table</span>
+              </div>
+            </div>
+
+            {/* Terminal Sales & Prizes KPIs for selected date */}
+            <div className="complete-chart-kpis">
+              <div className="chart-kpi-box">
+                <span className="chart-kpi-label">
+                  {role === 'counter' ? `${currentCounter} Sales` : 'Total Sales'}
+                </span>
+                <span className="chart-kpi-val" style={{ color: '#38bdf8' }}>
+                  {money(chartTotals.sales)}
+                </span>
+                <span style={{ fontSize: 9.5, color: '#64748b', display: 'block' }}>
+                  {chartTotals.units} units
+                </span>
+              </div>
+
+              <div className="chart-kpi-box">
+                <span className="chart-kpi-label">
+                  {role === 'counter' ? `${currentCounter} Prizes` : 'Total Prizes'}
+                </span>
+                <span className="chart-kpi-val" style={{ color: '#f59e0b' }}>
+                  {money(chartTotals.prize)}
+                </span>
+                <span style={{ fontSize: 9.5, color: '#64748b', display: 'block' }}>
+                  {chartTotals.wins} winning claims
+                </span>
+              </div>
+
+              <div className="chart-kpi-box">
+                <span className="chart-kpi-label">Net Balance</span>
+                <span
+                  className="chart-kpi-val"
+                  style={{ color: chartTotals.net >= 0 ? '#34d399' : '#f87171' }}
+                >
+                  {chartTotals.net >= 0 ? `+${money(chartTotals.net)}` : money(chartTotals.net)}
+                </span>
+                <span style={{ fontSize: 9.5, color: '#64748b', display: 'block' }}>
+                  {chartTotals.net >= 0 ? 'Surplus' : 'Deficit'}
+                </span>
+              </div>
+            </div>
+
+            {/* Time Slot Table */}
+            <div className="complete-chart-table-wrap">
+              <table className="complete-chart-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>
+                      {role === 'counter' ? `${currentCounter} Sales` : 'Sales'}
+                    </th>
+                    <th>
+                      {role === 'counter' ? `${currentCounter} Prize` : 'Prize'}
+                    </th>
+                    <th>Net</th>
+                    {enabledCities.map((c) => {
+                      const cTheme = getCityColorTheme(c.id, cities);
+                      return (
+                        <th key={c.id} style={{ color: cTheme.border }}>
+                          {c.name}
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody>
+                  {chartSlotsData.map((s) => {
+                    const isActive = s.slot === currentSlot;
+                    return (
+                      <tr key={s.slot} className={isActive ? 'row-active' : ''}>
+                        <td style={{ fontWeight: 800 }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            {isActive && (
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  backgroundColor: '#3b82f6',
+                                }}
+                              />
+                            )}
+                            <span>{fmtTime(s.slot)}</span>
+                          </div>
+                        </td>
+                        <td
+                          style={{
+                            fontWeight: 700,
+                            color: s.sales > 0 ? '#38bdf8' : '#64748b',
+                          }}
+                        >
+                          {s.sales > 0 ? `${money(s.sales)} (${s.units}u)` : '—'}
+                        </td>
+                        <td
+                          style={{
+                            fontWeight: 700,
+                            color: s.prize > 0 ? '#f59e0b' : '#64748b',
+                          }}
+                        >
+                          {s.prize > 0 ? `${money(s.prize)} (${s.wins}w)` : '—'}
+                        </td>
+                        <td
+                          style={{
+                            fontWeight: 800,
+                            color:
+                              s.sales > 0 || s.prize > 0
+                                ? s.net >= 0
+                                  ? '#34d399'
+                                  : '#f87171'
+                                : '#64748b',
+                          }}
+                        >
+                          {s.sales > 0 || s.prize > 0
+                            ? s.net >= 0
+                              ? `+${money(s.net)}`
+                              : money(s.net)
+                            : '—'}
+                        </td>
+                        {enabledCities.map((c) => {
+                          const res = s.cityResults[c.id];
+                          return (
+                            <td key={c.id}>
+                              {res && res.num2D ? (
+                                <div className="chart-res-cell">
+                                  <span className="chart-res-2d">#{res.num2D}</span>
+                                  {res.num1D && (
+                                    <span className="chart-res-tens">T: {res.num1D}</span>
+                                  )}
+                                </div>
+                              ) : res && res.num1D ? (
+                                <span className="chart-res-2d" style={{ color: '#a7f3d0' }}>
+                                  #{res.num1D}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#475569' }}>—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* SCREEN VIEW 2: CITY ITEM PAGE (When user clicked a city block) */
+        <div className="item-view-container">
+          {/* Top Bar: Back to Cities button, City title & badge, Draw time */}
+          <div className="item-page-top-bar">
+            <button
+              type="button"
+              className="btn-back-cities"
+              onClick={() => {
+                setScreenView('cities');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Cities</span>
+            </button>
+
+            <div className="item-page-city-badge">
+              <span
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  backgroundColor: activeCityTheme.primary,
+                  boxShadow: `0 0 8px ${activeCityTheme.primary}`,
+                }}
+              />
+              <span className="item-page-city-name" style={{ color: activeCityTheme.primary }}>
+                {cityMap[selectedCityId] || 'City'}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: activeCityTheme.light,
+                  color: activeCityTheme.text,
+                  fontWeight: 700,
+                }}
+              >
+                {money(numberType === 2 ? settings.priceTwoDigit : settings.priceOneDigit)}/unit
+              </span>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Draw: <b>{fmtTime(currentSlot)}</b>
+              </span>
+            </div>
+          </div>
+
+          {/* Quick City Switcher Pills if user wants to change city without leaving item view */}
+          <div className="city-selector-section" style={{ marginBottom: 10 }}>
+            <div className="city-chips-scroll">
+              {enabledCities.map((c) => {
+                const isSelected = c.id === selectedCityId;
+                const cTheme = getCityColorTheme(c.id, cities);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`city-btn-large ${isSelected ? 'active' : ''}`}
+                    style={{
+                      backgroundColor: isSelected ? cTheme.primary : '#ffffff',
+                      borderColor: isSelected ? cTheme.primary : cTheme.border,
+                      color: isSelected ? '#ffffff' : cTheme.text,
+                      padding: '6px 14px',
+                      minHeight: 38,
+                      fontSize: 13,
+                    }}
+                    onClick={() => setSelectedCityId(c.id)}
+                  >
+                    <span
+                      className="city-btn-dot"
+                      style={{
+                        backgroundColor: isSelected ? '#ffffff' : cTheme.primary,
+                      }}
+                    />
+                    <span className="city-btn-name">{c.name}</span>
+                    {isSelected && (
+                      <Check size={14} className="city-btn-check" strokeWidth={3} />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
       {/* Type & Filter Toolbar */}
       <div className="billing-toolbar">
         <div className="type-toggle-pills">
@@ -1486,14 +2113,14 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         </div>
       </div>
 
-      {/* PERSISTENT BOTTOM CHECKOUT BAR WITH FULLY EDITABLE CART */}
-      <div className="checkout-bar">
+      {/* STICKY BOTTOM ACTION BAR ON ITEM PAGE (With Continue vs Finalise as requested) */}
+      <div className="item-page-action-bar">
         {selectedItems.length > 0 && (
-          <div className="selected-items-preview">
-            <div className="preview-header">
+          <div className="selected-items-preview" style={{ padding: '6px 8px', marginBottom: 2 }}>
+            <div className="preview-header" style={{ marginBottom: 4 }}>
               <div className="flex-row items-center gap-2">
-                <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                  Selected Items ({selectedItems.length} entries)
+                <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-main)' }}>
+                  Selected Items ({selectedItems.length})
                 </span>
                 <span
                   style={{
@@ -1507,7 +2134,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   Editable Cart
                 </span>
               </div>
-              <button type="button" className="btn-text-danger" onClick={clearDraft}>
+              <button type="button" className="btn-text-danger" onClick={clearDraft} style={{ fontSize: 11 }}>
                 <Trash2 size={12} />
                 <span>Clear All</span>
               </button>
@@ -1521,27 +2148,16 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   <div
                     key={`${it.cityId}-${it.type}-${it.number}`}
                     className="item-chip"
-                    style={{
-                      borderColor: itTheme.border,
-                    }}
+                    style={{ borderColor: itTheme.border }}
                   >
                     <span
                       className="chip-city"
-                      style={{
-                        backgroundColor: itTheme.primary,
-                        color: '#ffffff',
-                      }}
+                      style={{ backgroundColor: itTheme.primary, color: '#ffffff' }}
                     >
                       {it.cityName.slice(0, 3)}
                     </span>
 
-                    <span
-                      style={{
-                        fontSize: 9,
-                        color: '#64748b',
-                        fontWeight: 700,
-                      }}
-                    >
+                    <span style={{ fontSize: 9, color: '#64748b', fontWeight: 700 }}>
                       {it.type === 2 ? '2D' : '1D'}
                     </span>
 
@@ -1549,14 +2165,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                       #{it.number}
                     </b>
 
-                    {/* Stepper with direct quantity input for instant editing */}
                     <div className="chip-stepper">
                       <button
                         type="button"
                         className="chip-step-btn"
-                        onClick={() =>
-                          updateQuantity(it.cityId, it.type, it.number, -1)
-                        }
+                        onClick={() => updateQuantity(it.cityId, it.type, it.number, -1)}
                         title="Decrease units"
                       >
                         -
@@ -1583,9 +2196,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                       <button
                         type="button"
                         className="chip-step-btn"
-                        onClick={() =>
-                          updateQuantity(it.cityId, it.type, it.number, 1)
-                        }
+                        onClick={() => updateQuantity(it.cityId, it.type, it.number, 1)}
                         title="Increase units"
                       >
                         +
@@ -1597,9 +2208,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     <button
                       type="button"
                       className="chip-remove"
-                      onClick={() =>
-                        updateQuantity(it.cityId, it.type, it.number, 0, true)
-                      }
+                      onClick={() => updateQuantity(it.cityId, it.type, it.number, 0, true)}
                       title="Remove this item"
                     >
                       ×
@@ -1611,36 +2220,54 @@ export const BillingPage: React.FC<BillingPageProps> = ({
           </div>
         )}
 
-        {/* Action Row */}
-        <div className="checkout-action-row">
-          <div className="checkout-inputs">
+        {/* Customer input & Totals row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div className="checkout-inputs" style={{ flex: 1 }}>
             <input
               type="text"
-              placeholder="Cust Name (opt)"
+              placeholder="Customer Name (optional)"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               className="customer-input"
+              style={{ width: '100%', height: 34, fontSize: 12 }}
             />
           </div>
 
-          <div className="checkout-summary">
-            <div className="summary-units">{totalUnits} units</div>
-            <div className="summary-amount">{money(totalAmount)}</div>
+          <div className="checkout-summary" style={{ textAlign: 'right' }}>
+            <div className="summary-units" style={{ fontSize: 12 }}>{totalUnits} units</div>
+            <div className="summary-amount" style={{ fontSize: 16 }}>{money(totalAmount)}</div>
           </div>
+        </div>
+
+        {/* Action Buttons: Continue (Add More Cities) vs Finalise & Generate Receipt */}
+        <div className="item-action-row">
+          <button
+            type="button"
+            className="btn-continue-cities"
+            onClick={() => {
+              setScreenView('cities');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            title="Keep items in cart and select another city"
+          >
+            <Layers size={16} />
+            <span>Continue (Add More Cities)</span>
+          </button>
 
           <button
             type="button"
-            className="btn-create-bill"
+            className="btn-finalise-receipt"
             disabled={isLocked || selectedItems.length === 0}
             onClick={handleCreateBill}
+            title="Finalise bill and print thermal receipt"
           >
             <Printer size={18} />
-            <span className="btn-label">
-              {isLocked ? 'LOCKED' : 'Create & Print'}
-            </span>
+            <span>{isLocked ? 'LOCKED' : 'Finalise & Generate Receipt'}</span>
           </button>
         </div>
       </div>
     </div>
+  )}
+</div>
   );
 };
