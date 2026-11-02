@@ -1136,8 +1136,13 @@ export const BillingPage: React.FC<BillingPageProps> = ({
         </div>
       )}
 
-      {/* ENLARGED NUMBER TILES GRID */}
+      {/* ENLARGED NUMBER TILES GRID WITH CITY WATERMARK */}
       <div className="number-grid-container">
+        {/* City Watermark behind item boxes */}
+        <div className="city-watermark-bg" aria-hidden="true">
+          <span>{cityMap[selectedCityId] || 'CITY'}</span>
+        </div>
+
         <div
           className={`number-tiles-grid ${
             numberType === 1 ? 'single-digit-grid' : ''
@@ -1173,6 +1178,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                       }
                 }
               >
+                {/* Subtle City Watermark inside item box */}
+                <span className="tile-city-watermark" aria-hidden="true">
+                  {cityMap[selectedCityId] || ''}
+                </span>
+
                 {/* Tile Header & Big Number */}
                 <button
                   type="button"

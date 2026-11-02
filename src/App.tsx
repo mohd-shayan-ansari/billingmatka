@@ -213,9 +213,49 @@ export function App() {
   };
 
   const handleResultDeclared = async (newResult: Result) => {
-    setResults((prev) => [newResult, ...prev]);
+    setResults((prev) => {
+      const idx = prev.findIndex(
+        (r) =>
+          r.date === newResult.date &&
+          r.slot === newResult.slot &&
+          r.cityId === newResult.cityId &&
+          r.type === newResult.type
+      );
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newResult;
+        return copy;
+      }
+      return [newResult, ...prev];
+    });
     if (isCloudActive) {
       await cloudInsertResult(newResult);
+    }
+  };
+
+  const handleBatchResultsDeclared = async (newResults: Result[]) => {
+    setResults((prev) => {
+      let copy = [...prev];
+      newResults.forEach((nr) => {
+        const idx = copy.findIndex(
+          (r) =>
+            r.date === nr.date &&
+            r.slot === nr.slot &&
+            r.cityId === nr.cityId &&
+            r.type === nr.type
+        );
+        if (idx >= 0) {
+          copy[idx] = nr;
+        } else {
+          copy = [nr, ...copy];
+        }
+      });
+      return copy;
+    });
+    if (isCloudActive) {
+      for (const nr of newResults) {
+        await cloudInsertResult(nr);
+      }
     }
   };
 
@@ -346,6 +386,7 @@ export function App() {
             role={role}
             currentCounter={currentCounter}
             onResultDeclared={handleResultDeclared}
+            onBatchResultsDeclared={handleBatchResultsDeclared}
           />
         )}
 
@@ -353,6 +394,7 @@ export function App() {
           <BillsPage
             bills={bills}
             cities={cities}
+            results={results}
             role={role}
             currentCounter={currentCounter}
             onSelectBill={(b) => setModalBill(b)}
@@ -382,6 +424,7 @@ export function App() {
       {modalBill && (
         <ReceiptModal
           bill={modalBill}
+          results={results}
           onClose={() => setModalBill(null)}
           printerConfig={printerConfig}
           cityMap={cityMap}

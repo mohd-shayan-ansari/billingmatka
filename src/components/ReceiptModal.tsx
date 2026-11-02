@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Bluetooth, Printer, X, Check, Copy, ShieldAlert } from 'lucide-react';
-import type { Bill, PrinterConfig, UserRole } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Bluetooth, Printer, X, Check, Copy, ShieldAlert, Trophy } from 'lucide-react';
+import type { Bill, PrinterConfig, Result, UserRole } from '../types';
 import { buildReceiptPlainText, printBill, printTestReceipt } from '../utils/printer';
+import { money } from '../utils/helpers';
 
 interface ReceiptModalProps {
   bill: Bill | null;
+  results?: Result[];
   onClose: () => void;
   printerConfig: PrinterConfig;
   cityMap: Record<string, string>;
@@ -14,6 +16,7 @@ interface ReceiptModalProps {
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   bill,
+  results = [],
   onClose,
   printerConfig,
   cityMap,
@@ -23,6 +26,36 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   const [printStatus, setPrintStatus] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  const winningDetails = useMemo(() => {
+    if (!bill || !results || results.length === 0) return null;
+    const matchingResults = results.filter((r) => r.date === bill.date && r.slot === bill.slot);
+    let totalPrize = 0;
+    const wins: Array<{ city: string; num: string; units: number; prize: number }> = [];
+
+    if (bill.items && bill.items.length > 0) {
+      bill.items.forEach((it) => {
+        const match = matchingResults.find(
+          (r) =>
+            r.cityId === it.cityId &&
+            r.type === it.type &&
+            String(r.number).trim() === String(it.number).trim()
+        );
+        if (match) {
+          const unitPrize = match.prizePerUnit || (match.type === 1 ? 95 : 950);
+          const prize = it.units * unitPrize;
+          totalPrize += prize;
+          wins.push({
+            city: cityMap[it.cityId] || 'City',
+            num: it.number,
+            units: it.units,
+            prize,
+          });
+        }
+      });
+    }
+    return totalPrize > 0 ? { totalPrize, wins } : null;
+  }, [bill, results, cityMap]);
 
   if (!bill) return null;
 
@@ -96,6 +129,32 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
         {printStatus && (
           <div className="print-status-banner">
             <span>{printStatus}</span>
+          </div>
+        )}
+
+        {/* Celebratory Winning Banner if Ticket Won */}
+        {winningDetails && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
+              border: '2px solid #10b981',
+              borderRadius: 12,
+              padding: '10px 14px',
+              marginBottom: 12,
+              color: '#065f46',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 900, fontSize: 14 }}>
+              <Trophy size={18} className="text-amber" />
+              <span>🎉 WINNING RECEIPT! Prize Won: {money(winningDetails.totalPrize)}</span>
+            </div>
+            <div style={{ marginTop: 4, fontSize: 12, opacity: 0.9 }}>
+              {winningDetails.wins.map((w, idx) => (
+                <span key={idx} style={{ marginRight: 10 }}>
+                  • {w.city} #{w.num} (×{w.units}): <b>{money(w.prize)}</b>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
