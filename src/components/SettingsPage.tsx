@@ -44,6 +44,7 @@ interface SettingsPageProps {
   onSavePrinterConfig: (config: PrinterConfig) => void;
   isCloudConnected: boolean;
   onSwitchRole?: () => void;
+  onClearAllData?: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -56,6 +57,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onSavePrinterConfig,
   isCloudConnected,
   onSwitchRole,
+  onClearAllData,
 }) => {
   // Local form states for settings
   const [startTime, setStartTime] = useState(settings.start);
@@ -921,6 +923,49 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </button>
         </div>
       </div>
+
+      {/* 7. DANGER ZONE: CLEAR DATA */}
+      {onClearAllData && (
+        <div className="card settings-card" style={{ borderColor: '#fca5a5', background: '#fff5f5' }}>
+          <div className="card-header-row">
+            <div className="flex-row items-center gap-2">
+              <Trash2 size={20} className="text-danger" style={{ color: '#ef4444' }} />
+              <div>
+                <h2 className="card-title" style={{ color: '#b91c1c' }}>Reset / Clear Data</h2>
+                <div className="card-subtitle">Erase all receipts and results to start fresh with zero receipts</div>
+              </div>
+            </div>
+          </div>
+
+          <p style={{ fontSize: 13, color: '#7f1d1d', marginTop: 10, lineHeight: 1.5 }}>
+            This will permanently delete all customer bills, receipts, and declared draw results. City names, counter logins, printer configs, and timing settings will remain preserved.
+          </p>
+
+          <div style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn-danger"
+              style={{
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+              onClick={onClearAllData}
+            >
+              <Trash2 size={16} />
+              <span>Clear All Receipts & Results</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

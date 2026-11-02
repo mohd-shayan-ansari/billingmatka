@@ -13,6 +13,8 @@ import {
   Layers,
   ArrowLeft,
   Calendar,
+  Globe,
+  RotateCcw,
 } from 'lucide-react';
 import type { Bill, City, PrinterConfig, Result, Settings, UserRole } from '../types';
 import {
@@ -71,7 +73,11 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   const [statusMessage, setStatusMessage] = useState<string>('');
 
   // Counter User Flow: 'cities' (Big City Blocks + Complete Chart) vs 'items' (Number Grid Page)
-  const [screenView, setScreenView] = useState<'cities' | 'items'>('cities');
+  const [screenView, setScreenView] = useState<'cities' | 'items' | 'allCities'>('cities');
+  const [showRepeatModal, setShowRepeatModal] = useState<boolean>(false);
+  const [repeatMode, setRepeatMode] = useState<'double' | 'single' | 'both'>('double');
+  const [repeatSlot, setRepeatSlot] = useState<string>('');
+  const [repeatUnits, setRepeatUnits] = useState<number>(1);
   const [chartDate, setChartDate] = useState<string>(today());
   const [showCartDrawer, setShowCartDrawer] = useState<boolean>(false);
 
@@ -140,6 +146,84 @@ export const BillingPage: React.FC<BillingPageProps> = ({
 
   // All time slots of the day
   const allSlots = useMemo(() => timeSlots(settings), [settings]);
+
+  // Slots that have declared results today (sorted descending, latest first)
+  const slotsWithResultsToday = useMemo(() => {
+    const todayStr = today();
+    const declaredSlots = new Set<string>();
+    results.forEach((r) => {
+      if (r.date === todayStr) {
+        declaredSlots.add(r.slot);
+      }
+    });
+    const list = Array.from(declaredSlots);
+    return list.sort((a, b) => b.localeCompare(a));
+  }, [results]);
+
+  // Default repeatSlot to latest slot with results
+  useEffect(() => {
+    if (slotsWithResultsToday.length > 0 && (!repeatSlot || !slotsWithResultsToday.includes(repeatSlot))) {
+      setRepeatSlot(slotsWithResultsToday[0]);
+    } else if (slotsWithResultsToday.length === 0 && !repeatSlot) {
+      setRepeatSlot(currentSlot);
+    }
+  }, [slotsWithResultsToday, currentSlot, repeatSlot]);
+
+  // Execute repeating previous slot results
+  const handleExecuteRepeatResults = () => {
+    const todayStr = today();
+    const targetSlot = repeatSlot || currentSlot;
+    const slotResults = results.filter((r) => r.date === todayStr && r.slot === targetSlot);
+
+    if (slotResults.length === 0) {
+      alert(`No results declared yet for slot ${fmtTime(targetSlot)} today.`);
+      return;
+    }
+
+    let addedCount = 0;
+    setDraftQuantities((prev) => {
+      const nextState = { ...prev };
+
+      slotResults.forEach((r) => {
+        const cityExists = enabledCities.some((c) => c.id === r.cityId);
+        if (!cityExists) return;
+
+        // If double or both: add 2-digit result
+        if ((repeatMode === 'double' || repeatMode === 'both') && r.type === 2) {
+          const num2D = String(r.number).padStart(2, '0');
+          const key2D = `${r.cityId}|2|${num2D}`;
+          nextState[key2D] = (nextState[key2D] || 0) + Math.max(1, repeatUnits);
+          addedCount++;
+        }
+
+        // If single or both: add single digit (tens digit of 2D or native 1D)
+        if (repeatMode === 'single' || repeatMode === 'both') {
+          let num1D = '';
+          if (r.type === 1) {
+            num1D = String(r.number);
+          } else if (r.type === 2) {
+            // Tens digit rule: 35 -> 3, 57 -> 5
+            num1D = String(r.number).padStart(2, '0').charAt(0);
+          }
+          if (num1D) {
+            const key1D = `${r.cityId}|1|${num1D}`;
+            nextState[key1D] = (nextState[key1D] || 0) + Math.max(1, repeatUnits);
+            addedCount++;
+          }
+        }
+      });
+
+      try {
+        localStorage.setItem('luckyDesk_billDraft', JSON.stringify(nextState));
+      } catch {}
+      return nextState;
+    });
+
+    setShowRepeatModal(false);
+    setStatusMessage(`Loaded ${addedCount} item(s) from ${fmtTime(targetSlot)} into cart!`);
+    setTimeout(() => setStatusMessage(''), 3500);
+  };
+
 
   // Current selected city theme
   const activeCityTheme = useMemo(
@@ -265,6 +349,42 @@ export const BillingPage: React.FC<BillingPageProps> = ({
   // Quick batch add to the highlighted / searched number
   const handleQuickAdd = (num: string, amount: number) => {
     updateQuantity(selectedCityId, numberType, num, amount);
+  };
+
+
+  // Check if a number is drafted in all cities
+  const getNumQuantityForAllCities = (num: string, type: 1 | 2) => {
+    if (enabledCities.length === 0) return 0;
+    // Check first city or min quantity
+    const counts = enabledCities.map((c) => draftQuantities[`${c.id}|${type}|${num}`] || 0);
+    return Math.min(...counts);
+  };
+
+  const updateQuantityForAllCities = (
+    type: 1 | 2,
+    number: string,
+    deltaOrSet: number,
+    isDirectSet: boolean = false
+  ) => {
+    setDraftQuantities((prev) => {
+      const nextState = { ...prev };
+      enabledCities.forEach((c) => {
+        const key = `${c.id}|${type}|${number}`;
+        const current = prev[key] || 0;
+        const nextVal = isDirectSet
+          ? Math.max(0, deltaOrSet)
+          : Math.max(0, current + deltaOrSet);
+        if (nextVal > 0) {
+          nextState[key] = nextVal;
+        } else {
+          delete nextState[key];
+        }
+      });
+      try {
+        localStorage.setItem('luckyDesk_billDraft', JSON.stringify(nextState));
+      } catch {}
+      return nextState;
+    });
   };
 
   // Add a specific number across ALL enabled cities
@@ -466,6 +586,176 @@ export const BillingPage: React.FC<BillingPageProps> = ({
 
   return (
     <div className="billing-page">
+
+      {/* REPEAT RESULT MODAL */}
+      {showRepeatModal && (
+        <div className="repeat-modal-overlay" onClick={() => setShowRepeatModal(false)}>
+          <div className="repeat-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="repeat-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ background: '#fef3c7', padding: 8, borderRadius: 10, display: 'flex' }}>
+                  <RotateCcw size={20} color="#d97706" />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#0f172a' }}>
+                    Repeat Slot Results
+                  </h3>
+                  <span style={{ fontSize: 11, color: '#64748b' }}>
+                    Quickly add past declared results into cart for purchase
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close-modal"
+                onClick={() => setShowRepeatModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="repeat-modal-body">
+              {/* Digit Type Choice: Double Digit, Single Digit, Both */}
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
+                  1. Which items to repeat?
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <button
+                    type="button"
+                    className={`repeat-type-btn ${repeatMode === 'double' ? 'active' : ''}`}
+                    onClick={() => setRepeatMode('double')}
+                  >
+                    <b style={{ fontSize: 14 }}>2-Digit</b>
+                    <span style={{ fontSize: 10, opacity: 0.85 }}>00–99 Results</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`repeat-type-btn ${repeatMode === 'single' ? 'active' : ''}`}
+                    onClick={() => setRepeatMode('single')}
+                  >
+                    <b style={{ fontSize: 14 }}>Single Digit</b>
+                    <span style={{ fontSize: 10, opacity: 0.85 }}>Tens digit (0-9)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`repeat-type-btn ${repeatMode === 'both' ? 'active' : ''}`}
+                    onClick={() => setRepeatMode('both')}
+                  >
+                    <b style={{ fontSize: 14 }}>Both (2D + 1D)</b>
+                    <span style={{ fontSize: 10, opacity: 0.85 }}>Both digits</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Time Slot Selection: Defaults to latest declared */}
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
+                  2. Choose Draw Time Slot
+                </label>
+                <select
+                  value={repeatSlot}
+                  onChange={(e) => setRepeatSlot(e.target.value)}
+                  className="repeat-slot-select"
+                >
+                  {allSlots.map((slot) => {
+                    const hasRes = results.some((r) => r.date === today() && r.slot === slot);
+                    const isLatest = slotsWithResultsToday[0] === slot;
+                    return (
+                      <option key={slot} value={slot}>
+                        {fmtTime(slot)} {isLatest ? '★ (Latest Declared)' : hasRes ? '✓ (Declared)' : '(No results)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              {/* Declared Results Preview for Chosen Slot */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
+                  Declared Results in {fmtTime(repeatSlot || currentSlot)}:
+                </label>
+                <div className="repeat-preview-grid">
+                  {enabledCities.map((c) => {
+                    const res2D = results.find(
+                      (r) => r.date === today() && r.slot === (repeatSlot || currentSlot) && r.cityId === c.id && r.type === 2
+                    );
+                    const res1D = results.find(
+                      (r) => r.date === today() && r.slot === (repeatSlot || currentSlot) && r.cityId === c.id && r.type === 1
+                    );
+
+                    let display2D = res2D ? String(res2D.number).padStart(2, '0') : '—';
+                    let display1D = res1D ? String(res1D.number) : res2D ? String(res2D.number).padStart(2, '0').charAt(0) : '—';
+
+                    return (
+                      <div key={c.id} className="repeat-city-box">
+                        <span className="repeat-city-name">{c.name}</span>
+                        <div className="repeat-numbers-display">
+                          {(repeatMode === 'double' || repeatMode === 'both') && (
+                            <span className="repeat-pill-2d">2D: <b>#{display2D}</b></span>
+                          )}
+                          {(repeatMode === 'single' || repeatMode === 'both') && (
+                            <span className="repeat-pill-1d">1D: <b>#{display1D}</b></span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Quantity / Units per item */}
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 6 }}>
+                  3. Quantity / Units per number
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={repeatUnits}
+                    onChange={(e) => setRepeatUnits(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                    className="repeat-qty-input"
+                  />
+                  {[1, 2, 5, 10].map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      className={`repeat-unit-quick ${repeatUnits === q ? 'active' : ''}`}
+                      onClick={() => setRepeatUnits(q)}
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="repeat-modal-footer">
+              <button
+                type="button"
+                className="btn-secondary"
+                style={{ flex: 1, padding: '10px' }}
+                onClick={() => setShowRepeatModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                style={{ flex: 1.5, padding: '10px', background: '#d97706', borderColor: '#d97706' }}
+                onClick={handleExecuteRepeatResults}
+              >
+                <RotateCcw size={16} />
+                <span>Load to Cart</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sleek Mini Top Bar */}
       <div className="mini-top-bar">
         <div className="mini-bar-left">
@@ -785,6 +1075,41 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             })}
           </div>
 
+
+          {/* TWO ACTION BUTTONS ABOVE COMPLETE CHART */}
+          <div className="billing-quick-actions-row">
+            <button
+              type="button"
+              className="billing-action-box btn-box-every-city"
+              onClick={() => {
+                setScreenView('allCities');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
+                <Globe size={24} color="#ffffff" />
+              </div>
+              <div className="box-text-wrap">
+                <span className="box-main-title">🌍 Every City</span>
+                <span className="box-sub-desc">Buy numbers for ALL {enabledCities.length} cities together</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="billing-action-box btn-box-repeat-result"
+              onClick={() => setShowRepeatModal(true)}
+            >
+              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                <RotateCcw size={24} color="#ffffff" />
+              </div>
+              <div className="box-text-wrap">
+                <span className="box-main-title">🔁 Repeat Result</span>
+                <span className="box-sub-desc">Repeat past slot results (Single / 2-Digit / Both)</span>
+              </div>
+            </button>
+          </div>
+
           {/* COMPLETE CHART: TIME SLOTS, SALES & PRIZES PER SLOT (As Requested) */}
           <div className="complete-chart-card">
             <div className="complete-chart-header">
@@ -1025,6 +1350,387 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             </div>
           )}
         </div>
+
+      ) : screenView === 'allCities' ? (
+        /* SCREEN VIEW: EVERY CITY ITEM PAGE */
+        <div className="item-view-container">
+          {/* Top Bar: Back to Cities button, Every City title & badge, Draw time */}
+          <div className="item-page-top-bar" style={{ borderColor: '#3b82f6', background: 'linear-gradient(90deg, #eff6ff 0%, #ffffff 100%)' }}>
+            <button
+              type="button"
+              className="btn-back-cities"
+              onClick={() => {
+                setScreenView('cities');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Home</span>
+            </button>
+
+            <div className="item-page-city-badge">
+              <Globe size={18} color="#2563eb" />
+              <span className="item-page-city-name" style={{ color: '#1d4ed8', fontWeight: 800 }}>
+                EVERY CITY ({enabledCities.length} Cities)
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  borderRadius: 6,
+                  background: '#dbeafe',
+                  color: '#1e40af',
+                  fontWeight: 700,
+                }}
+              >
+                {money((numberType === 2 ? settings.priceTwoDigit : settings.priceOneDigit) * enabledCities.length)}/unit for all
+              </span>
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Draw: <b>{fmtTime(currentSlot)}</b>
+              </span>
+            </div>
+          </div>
+
+          {/* Type & Filter Toolbar */}
+          <div className="billing-toolbar">
+            <div className="type-toggle-pills">
+              <button
+                type="button"
+                className={`pill-btn ${numberType === 2 ? 'active' : ''}`}
+                onClick={() => setNumberType(2)}
+              >
+                00–99 ({money(settings.priceTwoDigit)}/unit/city)
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${numberType === 1 ? 'active' : ''}`}
+                onClick={() => setNumberType(1)}
+              >
+                0–9 ({money(settings.priceOneDigit)}/unit/city)
+              </button>
+            </div>
+
+            {/* Quick Search */}
+            <div className="search-box">
+              <Search size={14} className="text-muted" />
+              <input
+                type="text"
+                placeholder="Jump to #..."
+                value={searchNum}
+                onChange={(e) => setSearchNum(e.target.value)}
+                className="search-input"
+                maxLength={2}
+              />
+              {searchNum && (
+                <button
+                  type="button"
+                  className="btn-clear-search"
+                  onClick={() => setSearchNum('')}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ENLARGED NUMBER TILES GRID WITH ALL CITIES WATERMARK */}
+          <div className="number-grid-container">
+            <div className="city-watermark-bg" aria-hidden="true">
+              <span>ALL CITIES</span>
+            </div>
+
+            <div
+              className={`number-tiles-grid ${
+                numberType === 1 ? 'single-digit-grid' : ''
+              }`}
+            >
+              {filteredNumbers.map((num) => {
+                const qtyAll = getNumQuantityForAllCities(num, numberType);
+                const isTileSelected = qtyAll > 0;
+
+                return (
+                  <div
+                    key={num}
+                    className={`number-tile ${isTileSelected ? 'tile-selected' : ''}`}
+                    style={
+                      isTileSelected
+                        ? {
+                            backgroundColor: '#eff6ff',
+                            borderColor: '#3b82f6',
+                            boxShadow: '0 0 0 2px #3b82f6',
+                          }
+                        : {
+                            backgroundColor: '#ffffff',
+                            borderColor: '#e2e8f0',
+                          }
+                    }
+                  >
+                    <span className="tile-city-watermark" aria-hidden="true">
+                      ALL
+                    </span>
+
+                    {/* Tile Header & Big Number */}
+                    <button
+                      type="button"
+                      className="tile-main-btn"
+                      onClick={() => updateQuantityForAllCities(numberType, num, 1)}
+                      title={`Add 1 unit of #${num} to ALL ${enabledCities.length} cities`}
+                    >
+                      <span
+                        className="tile-number"
+                        style={{
+                          color: isTileSelected ? '#2563eb' : '#0f172a',
+                        }}
+                      >
+                        {num}
+                      </span>
+                      {isTileSelected && (
+                        <span className="tile-sales-count" style={{ color: '#2563eb' }}>
+                          {qtyAll} in all {enabledCities.length}c
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Quantity Controls */}
+                    <div className="tile-stepper">
+                      <button
+                        type="button"
+                        className="step-btn step-minus"
+                        disabled={qtyAll <= 0}
+                        style={{
+                          borderColor: isTileSelected ? '#93c5fd' : '#e2e8f0',
+                          color: isTileSelected ? '#2563eb' : '#94a3b8',
+                          backgroundColor: '#ffffff',
+                        }}
+                        onClick={() => updateQuantityForAllCities(numberType, num, -1)}
+                      >
+                        <Minus size={12} />
+                      </button>
+
+                      <input
+                        type="number"
+                        min="0"
+                        className={`step-input ${qtyAll > 0 ? 'has-val' : ''}`}
+                        style={{
+                          borderColor: isTileSelected ? '#3b82f6' : '#e2e8f0',
+                          color: isTileSelected ? '#2563eb' : '#1e293b',
+                          backgroundColor: '#ffffff',
+                        }}
+                        value={qtyAll || ''}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          updateQuantityForAllCities(
+                            numberType,
+                            num,
+                            isNaN(val) ? 0 : val,
+                            true
+                          );
+                        }}
+                      />
+
+                      <button
+                        type="button"
+                        className="step-btn step-plus"
+                        style={{
+                          backgroundColor: isTileSelected ? '#2563eb' : '#eff6ff',
+                          borderColor: isTileSelected ? '#2563eb' : '#bfdbfe',
+                          color: isTileSelected ? '#ffffff' : '#2563eb',
+                        }}
+                        onClick={() => updateQuantityForAllCities(numberType, num, 1)}
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
+
+                    {/* Quick Add Buttons */}
+                    <div className="tile-quick-addons">
+                      <button
+                        type="button"
+                        className="quick-pill"
+                        style={{
+                          backgroundColor: '#ffffff',
+                          borderColor: '#bfdbfe',
+                          color: '#2563eb',
+                        }}
+                        onClick={() => updateQuantityForAllCities(numberType, num, 5)}
+                        title="Add 5 units across all cities"
+                      >
+                        +5
+                      </button>
+                      <button
+                        type="button"
+                        className="quick-pill"
+                        style={{
+                          backgroundColor: '#2563eb',
+                          borderColor: '#2563eb',
+                          color: '#ffffff',
+                        }}
+                        onClick={() => updateQuantityForAllCities(numberType, num, 10)}
+                        title="Add 10 units across all cities"
+                      >
+                        +10
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* STICKY BOTTOM ACTION BAR ON EVERY CITY PAGE */}
+          <div className="item-page-action-bar">
+            {selectedItems.length > 0 && (
+              <div className="selected-items-preview" style={{ padding: '6px 8px', marginBottom: 2 }}>
+                <div className="preview-header" style={{ marginBottom: 4 }}>
+                  <div className="flex-row items-center gap-2">
+                    <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-main)' }}>
+                      Selected Items ({selectedItems.length})
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        background: '#e0f2fe',
+                        color: '#0369a1',
+                        padding: '1px 5px',
+                        borderRadius: 4,
+                      }}
+                    >
+                      Editable Cart
+                    </span>
+                  </div>
+                  <button type="button" className="btn-text-danger" onClick={clearDraft} style={{ fontSize: 11 }}>
+                    <Trash2 size={12} />
+                    <span>Clear All</span>
+                  </button>
+                </div>
+
+                <div className="selected-chips-row">
+                  {selectedItems.map((it) => {
+                    const itTheme = getCityColorTheme(it.cityId, cities);
+                    return (
+                      <div
+                        key={`${it.cityId}-${it.type}-${it.number}`}
+                        className="item-chip"
+                        style={{ borderColor: itTheme.border }}
+                      >
+                        <span
+                          className="chip-city"
+                          style={{ backgroundColor: itTheme.primary, color: '#ffffff' }}
+                        >
+                          {it.cityName.slice(0, 3)}
+                        </span>
+
+                        <span style={{ fontSize: 9, color: '#64748b', fontWeight: 700 }}>
+                          {it.type === 2 ? '2D' : '1D'}
+                        </span>
+
+                        <b className="chip-num" style={{ color: itTheme.primary }}>
+                          #{it.number}
+                        </b>
+
+                        <div className="chip-stepper">
+                          <button
+                            type="button"
+                            className="chip-step-btn"
+                            onClick={() => updateQuantity(it.cityId, it.type, it.number, -1)}
+                          >
+                            -
+                          </button>
+
+                          <input
+                            type="number"
+                            min="1"
+                            className="chip-qty-input"
+                            value={it.units}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateQuantity(
+                                it.cityId,
+                                it.type,
+                                it.number,
+                                isNaN(val) ? 0 : val,
+                                true
+                              );
+                            }}
+                          />
+
+                          <button
+                            type="button"
+                            className="chip-step-btn"
+                            onClick={() => updateQuantity(it.cityId, it.type, it.number, 1)}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <span className="chip-amt">{money(it.amount)}</span>
+
+                        <button
+                          type="button"
+                          className="chip-remove"
+                          onClick={() => updateQuantity(it.cityId, it.type, it.number, 0, true)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Customer input & Totals row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <div className="checkout-inputs" style={{ flex: 1 }}>
+                <input
+                  type="text"
+                  placeholder="Customer Name (optional)"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="customer-input"
+                  style={{ width: '100%', height: 34, fontSize: 12 }}
+                />
+              </div>
+
+              <div className="checkout-summary" style={{ textAlign: 'right' }}>
+                <div className="summary-units" style={{ fontSize: 12 }}>{totalUnits} units</div>
+                <div className="summary-amount" style={{ fontSize: 16 }}>{money(totalAmount)}</div>
+              </div>
+            </div>
+
+            {/* Action Buttons: Continue (Back to Home) vs Finalise & Generate Receipt */}
+            <div className="item-action-row">
+              <button
+                type="button"
+                className="btn-continue-cities"
+                onClick={() => {
+                  setScreenView('cities');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                title="Keep existing cart and return to home page"
+              >
+                <Layers size={16} />
+                <span>Continue (Home with Cart)</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-finalise-receipt"
+                disabled={isLocked || selectedItems.length === 0}
+                onClick={handleCreateBill}
+                title="Finalise bill and print thermal receipt"
+              >
+                <Printer size={18} />
+                <span>{isLocked ? 'LOCKED' : 'Finalise & Generate Receipt'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
       ) : (
         /* SCREEN VIEW 2: CITY ITEM PAGE (When user clicked a city block) */
         <div className="item-view-container">

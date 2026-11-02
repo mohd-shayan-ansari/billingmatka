@@ -271,6 +271,27 @@ export function App() {
     }
   };
 
+  const handleClearAllData = () => {
+    if (!window.confirm('Are you sure you want to CLEAR ALL DATA?\n\nThis will permanently delete all receipts and draw results so you can start over with no receipts. This action cannot be undone.')) {
+      return;
+    }
+    setBills([]);
+    setResults([]);
+    try {
+      localStorage.removeItem('luckyDesk_billDraft');
+      const saved = localStorage.getItem('luckyDesk_v2_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.bills = [];
+        parsed.results = [];
+        localStorage.setItem('luckyDesk_v2_state', JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.error('Failed to clear local storage:', e);
+    }
+    alert('All receipts and results have been cleared successfully.');
+  };
+
   const handleSaveCities = async (updated: City[]) => {
     setCities(updated);
     if (isCloudActive) {
@@ -413,6 +434,7 @@ export function App() {
             onSavePrinterConfig={handleSavePrinterConfig}
             isCloudConnected={isCloudActive}
             onSwitchRole={() => setIsRoleModalOpen(true)}
+            onClearAllData={handleClearAllData}
           />
         )}
       </main>
