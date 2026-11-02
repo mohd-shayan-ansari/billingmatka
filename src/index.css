@@ -3192,20 +3192,32 @@ button, input, select {
   color: var(--text-main);
 }
 
-/* Sticky Action Bar on Item Page */
+/* Elevated Action Bar on Item Page (Positioned cleanly above bottom nav) */
+.item-view-container {
+  padding-bottom: calc(230px + var(--safe-bottom));
+}
+
 .item-page-action-bar {
-  position: sticky;
-  bottom: 0;
+  position: fixed;
+  bottom: calc(58px + var(--safe-bottom));
   left: 0;
   right: 0;
+  max-width: 600px;
+  margin: 0 auto;
   background: #ffffff;
-  border-top: 2px solid var(--border-subtle);
-  padding: 12px 14px calc(12px + var(--safe-bottom));
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
-  z-index: 35;
+  border-top: 2px solid #e2e8f0;
+  padding: 10px 14px 12px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 45;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+@media (min-width: 1024px) {
+  .item-page-action-bar {
+    max-width: 900px;
+  }
 }
 
 .item-action-row {
@@ -3225,11 +3237,11 @@ button, input, select {
   color: #334155;
   font-size: 13px;
   font-weight: 700;
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.15s ease;
-  min-height: 46px;
+  min-height: 44px;
 }
 
 .btn-continue-cities:hover {
@@ -3238,7 +3250,7 @@ button, input, select {
 }
 
 .btn-finalise-receipt {
-  flex: 1.4;
+  flex: 1.35;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3246,14 +3258,14 @@ button, input, select {
   background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   color: #ffffff;
   border: none;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 800;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
   transition: all 0.15s ease;
-  min-height: 46px;
+  min-height: 44px;
 }
 
 .btn-finalise-receipt:hover:not(:disabled) {
@@ -3265,4 +3277,29 @@ button, input, select {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* Floating Checkout Bar on City Selection Screen */
+.city-floating-checkout-bar {
+  position: fixed;
+  bottom: calc(58px + var(--safe-bottom));
+  left: 0;
+  right: 0;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-top: 2px solid #e2e8f0;
+  padding: 10px 14px 12px;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+@media (min-width: 1024px) {
+  .city-floating-checkout-bar {
+    max-width: 900px;
+  }
 }

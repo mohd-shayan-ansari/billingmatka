@@ -246,7 +246,7 @@ export function App() {
     sessionStorage.setItem('luckyDesk_role', 'counter');
     sessionStorage.setItem('luckyDesk_counter', counterName);
     setIsRoleModalOpen(false);
-    if (activeTab === 'settings') {
+    if (activeTab === 'settings' || activeTab === 'overview' || activeTab === 'results') {
       setActiveTab('billing');
     }
   };
@@ -264,6 +264,9 @@ export function App() {
     sessionStorage.setItem('luckyDesk_authenticated', 'true');
     sessionStorage.setItem('luckyDesk_role', newRole);
     sessionStorage.setItem('luckyDesk_counter', counterName);
+    if (newRole === 'counter' && (activeTab === 'settings' || activeTab === 'overview' || activeTab === 'results')) {
+      setActiveTab('billing');
+    }
   };
 
   const handleLogout = () => {
@@ -322,7 +325,7 @@ export function App() {
           />
         )}
 
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && role === 'admin' && (
           <OverviewPage
             cities={cities}
             settings={settings}

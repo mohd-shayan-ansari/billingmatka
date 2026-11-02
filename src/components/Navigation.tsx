@@ -24,8 +24,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange, 
     },
     {
       key: 'overview',
-      label: role === 'counter' ? 'Sales & Prizes' : 'Live Data',
+      label: 'Live Data',
       icon: <BarChart3 size={20} />,
+      adminOnly: true,
     },
     {
       key: 'results',

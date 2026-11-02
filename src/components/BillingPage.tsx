@@ -1809,6 +1809,49 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               </table>
             </div>
           </div>
+
+          {/* FLOATING CHECKOUT BAR ON CITY SCREEN IF CART HAS ITEMS */}
+          {selectedItems.length > 0 && (
+            <div className="city-floating-checkout-bar">
+              <div className="city-floating-info">
+                <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--text-main)' }}>
+                  Cart: {selectedItems.length} Items ({totalUnits} units)
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: '#16a34a' }}>
+                  {money(totalAmount)}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn-continue-cities"
+                  style={{ padding: '8px 12px', minHeight: 40, fontSize: 12 }}
+                  onClick={() => {
+                    const firstCityWithItems = selectedItems[0]?.cityId || selectedCityId;
+                    setSelectedCityId(firstCityWithItems);
+                    setScreenView('items');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  title="Open items grid to edit numbers"
+                >
+                  <span>Edit Cart</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-finalise-receipt"
+                  style={{ padding: '8px 14px', minHeight: 40, fontSize: 13 }}
+                  disabled={isLocked || selectedItems.length === 0}
+                  onClick={handleCreateBill}
+                  title="Finalise and print thermal receipt"
+                >
+                  <Printer size={16} />
+                  <span>{isLocked ? 'LOCKED' : 'Finalise'}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* SCREEN VIEW 2: CITY ITEM PAGE (When user clicked a city block) */
