@@ -161,17 +161,76 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
     return dateBills.filter((b) => b.slot === selectedSlot);
   }, [dateBills, selectedSlot]);
 
-  // Stats for the selected slot per counter
+  // Helper to calculate exact prize payout for a bill
+  const getBillWinnings = useMemo(() => {
+    const cache = new Map<string, { prize: number; winCount: number }>();
+
+    return (b: Bill) => {
+      if (cache.has(b.receipt)) return cache.get(b.receipt)!;
+
+      let prize = 0;
+      let winCount = 0;
+      const matchingResults = results.filter((r) => r.date === b.date && r.slot === b.slot);
+
+      if (b.items && b.items.length > 0) {
+        b.items.forEach((it) => {
+          const match = matchingResults.find(
+            (r) =>
+              r.cityId === it.cityId &&
+              r.type === it.type &&
+              String(r.number).trim() === String(it.number).trim()
+          );
+          if (match) {
+            const unitPrize = match.prizePerUnit || (match.type === 1 ? 95 : 950);
+            prize += it.units * unitPrize;
+            winCount += 1;
+          }
+        });
+      } else {
+        const match = matchingResults.find(
+          (r) =>
+            r.cityId === b.cityId &&
+            r.type === b.type &&
+            String(r.number).trim() === String(b.number).trim()
+        );
+        if (match) {
+          const unitPrize = match.prizePerUnit || (match.type === 1 ? 95 : 950);
+          prize += (b.units || 1) * unitPrize;
+          winCount += 1;
+        }
+      }
+
+      const res = { prize, winCount };
+      cache.set(b.receipt, res);
+      return res;
+    };
+  }, [results]);
+
+  // Stats for the selected slot per counter, including full day sales, prize & net profit
   const slotStats = useMemo(() => {
     const totalSlotSales = slotBills.reduce((s, b) => s + b.amount, 0);
     const totalSlotUnits = slotBills.reduce((s, b) => s + (b.unitsTotal || b.units || 0), 0);
 
     const counterBreakdown = countersList.map((cName) => {
+      // Slot-level bills
       const cBills = slotBills.filter((b) => b.counter === cName);
       const sales = cBills.reduce((s, b) => s + b.amount, 0);
       const units = cBills.reduce((s, b) => s + (b.unitsTotal || b.units || 0), 0);
       const billsCount = cBills.length;
       const sharePct = totalSlotSales > 0 ? (sales / totalSlotSales) * 100 : 0;
+
+      // Slot-level prizes & net
+      const slotPrize = cBills.reduce((sum, b) => sum + getBillWinnings(b).prize, 0);
+      const slotNet = sales - slotPrize;
+
+      // Full Day bills for this counter
+      const cDayBills = dateBills.filter((b) => b.counter === cName);
+      const daySales = cDayBills.reduce((s, b) => s + b.amount, 0);
+      const dayUnits = cDayBills.reduce((s, b) => s + (b.unitsTotal || b.units || 0), 0);
+      const dayBillsCount = cDayBills.length;
+      const dayPrize = cDayBills.reduce((sum, b) => sum + getBillWinnings(b).prize, 0);
+      const dayNet = daySales - dayPrize;
+
       return {
         counter: cName,
         sales,
@@ -179,6 +238,13 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         billsCount,
         sharePct,
         avgTicket: billsCount > 0 ? sales / billsCount : 0,
+        slotPrize,
+        slotNet,
+        daySales,
+        dayUnits,
+        dayBillsCount,
+        dayPrize,
+        dayNet,
       };
     });
 
@@ -188,7 +254,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       totalBills: slotBills.length,
       counters: counterBreakdown,
     };
-  }, [slotBills, countersList]);
+  }, [slotBills, dateBills, countersList, getBillWinnings]);
 
   // Full day slot-by-slot table data
   const fullDaySlotData = useMemo(() => {
@@ -553,7 +619,33 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 </div>
 
                 <div className="counter-amount-hero">
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>
+                    Slot Sales
+                  </div>
                   {money(c.sales)}
+                </div>
+
+                {/* Day Summary: Day Sales, Day Prize, Day Net Profit */}
+                <div className="counter-day-summary-box">
+                  <div className="counter-day-header">
+                    <span className="counter-day-tag">Full Day Performance</span>
+                  </div>
+                  <div className="counter-day-grid">
+                    <div className="counter-day-stat">
+                      <span className="stat-label">Day Sales</span>
+                      <span className="stat-val stat-sales">{money(c.daySales)}</span>
+                    </div>
+                    <div className="counter-day-stat">
+                      <span className="stat-label">Day Prize</span>
+                      <span className="stat-val stat-prize">{money(c.dayPrize)}</span>
+                    </div>
+                    <div className="counter-day-stat">
+                      <span className="stat-label">Net Profit</span>
+                      <span className={`stat-val ${c.dayNet >= 0 ? 'stat-profit' : 'stat-loss'}`}>
+                        {c.dayNet >= 0 ? `+${money(c.dayNet)}` : money(c.dayNet)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Visual Share Bar */}
@@ -567,11 +659,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
                 )}
 
                 <div className="counter-stats-footer">
-                  <span>{c.billsCount} bills</span>
+                  <span>Slot: {c.billsCount} bills</span>
                   <span className="dot-divider">•</span>
                   <span>{c.units} units</span>
                   <span className="dot-divider">•</span>
-                  <span>Avg {money(c.avgTicket)}</span>
+                  <span>Day: {c.dayBillsCount} bills</span>
                 </div>
               </div>
             );

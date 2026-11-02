@@ -3913,3 +3913,77 @@ button, input, select {
   border-top: 1px solid var(--border-subtle);
   background: #f8fafc;
 }
+
+
+/* ==========================================================================
+   PER-COUNTER BREAKDOWN BOX - DAY SALES, PRIZE & NET PROFIT
+   ========================================================================== */
+.counter-day-summary-box {
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.counter-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.counter-day-tag {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.counter-day-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.counter-day-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.counter-day-stat .stat-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.counter-day-stat .stat-val {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.counter-day-stat .stat-sales {
+  color: #0284c7;
+}
+
+.counter-day-stat .stat-prize {
+  color: #d97706;
+}
+
+.counter-day-stat .stat-profit {
+  color: #16a34a;
+}
+
+.counter-day-stat .stat-loss {
+  color: #dc2626;
+}
