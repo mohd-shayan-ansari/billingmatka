@@ -6,7 +6,6 @@ import {
   Printer,
   Search,
   Sparkles,
-  Check,
   Bluetooth,
   Globe,
   RotateCcw,
@@ -1901,43 +1900,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 Draw: <b>{fmtTime(currentSlot)}</b>
               </span>
-            </div>
-          </div>
-
-          {/* Quick City Switcher Pills if user wants to change city without leaving item view */}
-          <div className="city-selector-section" style={{ marginBottom: 10 }}>
-            <div className="city-chips-scroll">
-              {enabledCities.map((c) => {
-                const isSelected = c.id === selectedCityId;
-                const cTheme = getCityColorTheme(c.id, cities);
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`city-btn-large ${isSelected ? 'active' : ''}`}
-                    style={{
-                      backgroundColor: isSelected ? cTheme.primary : '#ffffff',
-                      borderColor: isSelected ? cTheme.primary : cTheme.border,
-                      color: isSelected ? '#ffffff' : cTheme.text,
-                      padding: '6px 14px',
-                      minHeight: 38,
-                      fontSize: 13,
-                    }}
-                    onClick={() => setSelectedCityId(c.id)}
-                  >
-                    <span
-                      className="city-btn-dot"
-                      style={{
-                        backgroundColor: isSelected ? '#ffffff' : cTheme.primary,
-                      }}
-                    />
-                    <span className="city-btn-name">{c.name}</span>
-                    {isSelected && (
-                      <Check size={14} className="city-btn-check" strokeWidth={3} />
-                    )}
-                  </button>
-                );
-              })}
             </div>
           </div>
 
