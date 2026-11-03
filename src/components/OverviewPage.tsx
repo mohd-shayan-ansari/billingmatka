@@ -346,10 +346,21 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
       }, 0);
   }, [results, selectedDate, role, currentCounter]);
 
+  const enabledCities = useMemo(() => cities.filter((c) => c.enabled), [cities]);
+
   // Matrix view controls (This slot vs All day)
   const [matrixScope, setMatrixScope] = useState<'slot' | 'day'>('slot');
-  const [selectedCityId, setSelectedCityId] = useState<string>(cities[0]?.id || 'c0');
+  const [selectedCityId, setSelectedCityId] = useState<string>(
+    cities.find((c) => c.enabled)?.id || cities[0]?.id || 'c0'
+  );
   const [viewType, setViewType] = useState<1 | 2>(2);
+
+  // Keep selectedCityId on an enabled city
+  useEffect(() => {
+    if (enabledCities.length > 0 && !enabledCities.some((c) => c.id === selectedCityId)) {
+      setSelectedCityId(enabledCities[0].id);
+    }
+  }, [enabledCities, selectedCityId]);
 
   // Compute sold counts for the matrix
   const matrixBills = matrixScope === 'slot' ? slotBills : dateBills;
@@ -924,7 +935,7 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({
         {/* Matrix Controls */}
         <div className="matrix-toolbar">
           <div className="city-chips-compact">
-            {cities.map((c) => {
+            {enabledCities.map((c) => {
               const isSelected = selectedCityId === c.id;
               const cTheme = getCityColorTheme(c.id, cities);
               return (

@@ -1021,34 +1021,19 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   </div>
 
                   <div className="big-city-center-box">
-                    {hasCart ? (
-                      <>
-                        <div className="big-city-cart-badge" style={{ fontSize: 13, color: '#fbbf24', marginTop: 0 }}>
-                          {itemsForCity.length === 1
-                            ? `#${itemsForCity[0].number}`
-                            : `${itemsForCity.length} Nos`}
-                        </div>
-                        <div className="big-city-cart-badge" style={{ fontSize: 10, color: '#34d399' }}>
-                          {unitsForCity} Units Selected
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div
-                          style={{
-                            fontSize: 16,
-                            fontWeight: 800,
-                            color: '#ffffff',
-                            letterSpacing: '1px',
-                          }}
-                        >
-                          SELECT
-                        </div>
-                        <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>
-                          Tap to open
-                        </div>
-                      </>
-                    )}
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: '#ffffff',
+                        letterSpacing: '1px',
+                      }}
+                    >
+                      SELECT
+                    </div>
+                    <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600 }}>
+                      Tap to open
+                    </div>
                   </div>
 
                   <div className="big-city-status-row">
@@ -1061,7 +1046,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     />
                     <span>
                       {hasCart
-                        ? `${unitsForCity} Units in Cart`
+                        ? 'Cart Selected'
                         : 'Open for Billing'}
                     </span>
                   </div>
