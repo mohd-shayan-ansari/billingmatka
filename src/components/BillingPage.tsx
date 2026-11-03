@@ -1019,20 +1019,13 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                   <div className="big-city-center-box">
                     {hasCart ? (
                       <>
-                        <div className="big-city-num-text" style={{ color: '#fbbf24' }}>
+                        <div className="big-city-cart-badge" style={{ fontSize: 13, color: '#fbbf24', marginTop: 0 }}>
                           {itemsForCity.length === 1
                             ? `#${itemsForCity[0].number}`
                             : `${itemsForCity.length} Nos`}
                         </div>
-                        <div className="big-city-cart-badge">{unitsForCity} Units Selected</div>
-                      </>
-                    ) : latestResult ? (
-                      <>
-                        <div className="big-city-num-text">
-                          {String(latestResult.number).padStart(latestResult.type === 2 ? 2 : 1, '0')}
-                        </div>
-                        <div style={{ fontSize: 9.5, color: '#a7f3d0', fontWeight: 700 }}>
-                          {latestResult.type === 2 ? '2-Digit' : '1-Digit'}
+                        <div className="big-city-cart-badge" style={{ fontSize: 10, color: '#34d399' }}>
+                          {unitsForCity} Units Selected
                         </div>
                       </>
                     ) : (
@@ -1058,15 +1051,13 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                     <span
                       className="big-city-status-dot"
                       style={{
-                        backgroundColor: hasCart ? '#10b981' : latestResult ? '#ffffff' : '#38bdf8',
+                        backgroundColor: hasCart ? '#10b981' : '#38bdf8',
                         boxShadow: hasCart ? '0 0 8px #10b981' : 'none',
                       }}
                     />
                     <span>
                       {hasCart
                         ? `${unitsForCity} Units in Cart`
-                        : latestResult
-                        ? 'Published'
                         : 'Open for Billing'}
                     </span>
                   </div>
