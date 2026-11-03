@@ -945,6 +945,40 @@ export const BillingPage: React.FC<BillingPageProps> = ({
             </div>
           )}
 
+          {/* TWO ACTION BUTTONS ABOVE CITY BLOCKS */}
+          <div className="billing-quick-actions-row">
+            <button
+              type="button"
+              className="billing-action-box btn-box-every-city"
+              onClick={() => {
+                setScreenView('allCities');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
+                <Globe size={24} color="#ffffff" />
+              </div>
+              <div className="box-text-wrap">
+                <span className="box-main-title">🌍 Every City</span>
+                <span className="box-sub-desc">Buy numbers for ALL {enabledCities.length} cities together</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="billing-action-box btn-box-repeat-result"
+              onClick={() => setShowRepeatModal(true)}
+            >
+              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                <RotateCcw size={24} color="#ffffff" />
+              </div>
+              <div className="box-text-wrap">
+                <span className="box-main-title">🔁 Repeat Result</span>
+                <span className="box-sub-desc">Repeat past slot results (Single / 2-Digit / Both)</span>
+              </div>
+            </button>
+          </div>
+
           {/* Section Heading */}
           <div
             style={{
@@ -1053,41 +1087,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                 </div>
               );
             })}
-          </div>
-
-
-          {/* TWO ACTION BUTTONS ABOVE COMPLETE CHART */}
-          <div className="billing-quick-actions-row">
-            <button
-              type="button"
-              className="billing-action-box btn-box-every-city"
-              onClick={() => {
-                setScreenView('allCities');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            >
-              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-                <Globe size={24} color="#ffffff" />
-              </div>
-              <div className="box-text-wrap">
-                <span className="box-main-title">🌍 Every City</span>
-                <span className="box-sub-desc">Buy numbers for ALL {enabledCities.length} cities together</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              className="billing-action-box btn-box-repeat-result"
-              onClick={() => setShowRepeatModal(true)}
-            >
-              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                <RotateCcw size={24} color="#ffffff" />
-              </div>
-              <div className="box-text-wrap">
-                <span className="box-main-title">🔁 Repeat Result</span>
-                <span className="box-sub-desc">Repeat past slot results (Single / 2-Digit / Both)</span>
-              </div>
-            </button>
           </div>
 
           {/* COMPLETE CHART: TIME SLOTS, SALES & PRIZES PER SLOT (As Requested) */}
