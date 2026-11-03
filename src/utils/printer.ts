@@ -323,7 +323,6 @@ export function buildBillEscPos(
   }
   builder.doubleSeparator();
 
-  // Group items by City and Type
   const items = bill.items && bill.items.length > 0
     ? bill.items
     : [{
@@ -335,34 +334,81 @@ export function buildBillEscPos(
         amount: bill.amount,
       }];
 
-  const groups: Record<string, { cityId: string; type: 1 | 2; items: typeof items }> = {};
-  items.forEach((item) => {
-    const cid = item.cityId || bill.cityId;
-    const type = item.type || bill.type;
-    const key = `${cid}|${type}`;
-    if (!groups[key]) {
-      groups[key] = { cityId: cid, type, items: [] };
-    }
-    groups[key].items.push(item);
-  });
-
-  Object.values(groups).forEach((group) => {
-    const cName = cityMap[group.cityId] || 'CITY';
+  // COMPACT PRINT FORMAT FOR "EVERY CITY" RECEIPTS
+  if (bill.isEveryCity) {
     builder.bold(true);
-    builder.textLine(cName.toUpperCase());
-    builder.bold(false);
-    builder.textLine(group.type === 2 ? 'DOUBLE-DIGIT (00-99)' : 'SINGLE-DIGIT (0-9)');
+    builder.alignCenter();
+    builder.textLine('*** ALL CITIES PURCHASE ***');
+    builder.alignLeft();
     builder.separator('-');
+    // Table Header: no.   qty       total
+    builder.threeColumnRow('no.', 'qty', 'total');
+    builder.separator('-');
+    builder.bold(false);
 
-    group.items.forEach((item) => {
-      const numStr = String(item.number);
-      const qtyStr = `x ${item.units}`;
-      const amtStr = `Rs ${Number(item.amount).toFixed(2)}`;
-      builder.threeColumnRow(numStr, qtyStr, amtStr);
+    // Group items by type and number across all cities
+    // E.g., item 35 in 5 cities with 2 units each at ₹10:
+    // qty string: "2*50", total string: "100" (or 100.00)
+    const everyCityNumGroups: Record<string, { type: 1 | 2; number: string; unitPerCity: number; totalAmt: number; numCities: number; pricePerUnitTotal: number }> = {};
+    items.forEach((item) => {
+      const type = item.type || bill.type;
+      const num = String(item.number);
+      const key = `${type}|${num}`;
+      if (!everyCityNumGroups[key]) {
+        everyCityNumGroups[key] = {
+          type,
+          number: num,
+          unitPerCity: item.units,
+          totalAmt: 0,
+          numCities: 0,
+          pricePerUnitTotal: 0,
+        };
+      }
+      everyCityNumGroups[key].totalAmt += item.amount;
+      everyCityNumGroups[key].numCities += 1;
+    });
+
+    Object.values(everyCityNumGroups).forEach((g) => {
+      // price of 1 item across all active cities = totalAmt / unitPerCity
+      const pricePerAllCities = g.unitPerCity > 0 ? Math.round(g.totalAmt / g.unitPerCity) : 0;
+      const col1 = g.number;
+      const col2 = `${g.unitPerCity}*${pricePerAllCities}`;
+      const col3 = String(Math.round(g.totalAmt));
+      builder.threeColumnRow(col1, col2, col3);
     });
 
     builder.separator('-');
-  });
+  } else {
+    // STANDARD PER-CITY BREAKDOWN FORMAT
+    const groups: Record<string, { cityId: string; type: 1 | 2; items: typeof items }> = {};
+    items.forEach((item) => {
+      const cid = item.cityId || bill.cityId;
+      const type = item.type || bill.type;
+      const key = `${cid}|${type}`;
+      if (!groups[key]) {
+        groups[key] = { cityId: cid, type, items: [] };
+      }
+      groups[key].items.push(item);
+    });
+
+    Object.values(groups).forEach((group) => {
+      const cName = cityMap[group.cityId] || 'CITY';
+      builder.bold(true);
+      builder.textLine(cName.toUpperCase());
+      builder.bold(false);
+      builder.textLine(group.type === 2 ? 'DOUBLE-DIGIT (00-99)' : 'SINGLE-DIGIT (0-9)');
+      builder.separator('-');
+
+      group.items.forEach((item) => {
+        const numStr = String(item.number);
+        const qtyStr = `x ${item.units}`;
+        const amtStr = `Rs ${Number(item.amount).toFixed(2)}`;
+        builder.threeColumnRow(numStr, qtyStr, amtStr);
+      });
+
+      builder.separator('-');
+    });
+  }
 
   // Totals
   builder.bold(true);
@@ -413,31 +459,69 @@ export function buildReceiptPlainText(
   lines.push(sep);
 
   const items = bill.items && bill.items.length > 0 ? bill.items : [];
-  const groups: Record<string, { cityId: string; type: 1 | 2; items: typeof items }> = {};
 
-  items.forEach((item) => {
-    const cid = item.cityId || bill.cityId;
-    const type = item.type || bill.type;
-    const key = `${cid}|${type}`;
-    if (!groups[key]) {
-      groups[key] = { cityId: cid, type, items: [] };
-    }
-    groups[key].items.push(item);
-  });
-
-  Object.values(groups).forEach((g) => {
-    const cName = cityMap[g.cityId] || 'CITY';
-    lines.push(`>> ${cName.toUpperCase()}`);
-    lines.push(g.type === 2 ? '   DOUBLE-DIGIT (00-99)' : '   SINGLE-DIGIT (0-9)');
+  if (bill.isEveryCity) {
+    lines.push(centerText('*** ALL CITIES PURCHASE ***', lineLen));
     lines.push(thinSep);
-    g.items.forEach((it) => {
-      const col1 = String(it.number).padEnd(6);
-      const col2 = `x ${it.units}`.padEnd(8);
-      const col3 = `₹${Number(it.amount).toFixed(2)}`.padStart(lineLen - 14);
+    // Table Header: no.   qty       total
+    const hCol1 = 'no.'.padEnd(8);
+    const hCol2 = 'qty'.padEnd(10);
+    const hCol3 = 'total'.padStart(lineLen - 18);
+    lines.push(`${hCol1}${hCol2}${hCol3}`);
+    lines.push(thinSep);
+
+    const everyCityNumGroups: Record<string, { type: 1 | 2; number: string; unitPerCity: number; totalAmt: number }> = {};
+    items.forEach((item) => {
+      const type = item.type || bill.type;
+      const num = String(item.number);
+      const key = `${type}|${num}`;
+      if (!everyCityNumGroups[key]) {
+        everyCityNumGroups[key] = {
+          type,
+          number: num,
+          unitPerCity: item.units,
+          totalAmt: 0,
+        };
+      }
+      everyCityNumGroups[key].totalAmt += item.amount;
+    });
+
+    Object.values(everyCityNumGroups).forEach((g) => {
+      const pricePerAllCities = g.unitPerCity > 0 ? Math.round(g.totalAmt / g.unitPerCity) : 0;
+      const col1 = g.number.padEnd(8);
+      const col2 = `${g.unitPerCity}*${pricePerAllCities}`.padEnd(10);
+      const col3 = String(Math.round(g.totalAmt)).padStart(lineLen - 18);
       lines.push(`${col1}${col2}${col3}`);
     });
+
     lines.push(thinSep);
-  });
+  } else {
+    const groups: Record<string, { cityId: string; type: 1 | 2; items: typeof items }> = {};
+
+    items.forEach((item) => {
+      const cid = item.cityId || bill.cityId;
+      const type = item.type || bill.type;
+      const key = `${cid}|${type}`;
+      if (!groups[key]) {
+        groups[key] = { cityId: cid, type, items: [] };
+      }
+      groups[key].items.push(item);
+    });
+
+    Object.values(groups).forEach((g) => {
+      const cName = cityMap[g.cityId] || 'CITY';
+      lines.push(`>> ${cName.toUpperCase()}`);
+      lines.push(g.type === 2 ? '   DOUBLE-DIGIT (00-99)' : '   SINGLE-DIGIT (0-9)');
+      lines.push(thinSep);
+      g.items.forEach((it) => {
+        const col1 = String(it.number).padEnd(6);
+        const col2 = `x ${it.units}`.padEnd(8);
+        const col3 = `₹${Number(it.amount).toFixed(2)}`.padStart(lineLen - 14);
+        lines.push(`${col1}${col2}${col3}`);
+      });
+      lines.push(thinSep);
+    });
+  }
 
   lines.push(`TOTAL UNITS:  ${bill.unitsTotal}`);
   lines.push(`TOTAL AMOUNT: ₹${Number(bill.amount).toFixed(2)}`);

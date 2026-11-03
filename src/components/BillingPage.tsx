@@ -530,7 +530,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     );
   }, [chartSlotsData]);
 
-  const handleCreateBill = async () => {
+  const handleCreateBill = async (fromEveryCityOption?: boolean | React.MouseEvent) => {
+    const fromEveryCity = typeof fromEveryCityOption === 'boolean' ? fromEveryCityOption : false;
     if (isLocked) {
       alert('Billing is locked for the upcoming draw slot.');
       return;
@@ -551,6 +552,8 @@ export const BillingPage: React.FC<BillingPageProps> = ({
     // Sequential receipt number per counter: Counter 1 -> A-01, Counter 2 -> B-01, etc.
     const receiptNo = generateNextReceiptNumber(counterToUse, bills, settings.counters);
 
+    const isEveryCityBill = fromEveryCity || screenView === 'allCities';
+
     const newBill: Bill = {
       receipt: receiptNo,
       date: dateStr,
@@ -566,6 +569,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
       unitsTotal: totalUnits,
       amount: totalAmount,
       items: selectedItems,
+      isEveryCity: isEveryCityBill,
     };
 
     onBillCreated(newBill);
@@ -1712,7 +1716,7 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                 type="button"
                 className="btn-finalise-receipt"
                 disabled={isLocked || selectedItems.length === 0}
-                onClick={handleCreateBill}
+                onClick={() => handleCreateBill(true)}
                 title="Finalise bill and print thermal receipt"
               >
                 <Printer size={18} />

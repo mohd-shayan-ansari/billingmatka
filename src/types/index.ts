@@ -52,6 +52,7 @@ export interface Bill {
   amount: number;
   amountPerUnit?: number;
   items: BillItem[];
+  isEveryCity?: boolean;
 }
 
 export interface Winner {
