@@ -955,9 +955,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
             >
-              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-                <Globe size={26} color="#ffffff" />
-              </div>
               <div className="box-text-wrap">
                 <span className="box-main-title">Every City</span>
                 <span className="box-sub-desc">Buy numbers for ALL {enabledCities.length} cities together</span>
@@ -969,9 +966,6 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               className="billing-action-box btn-box-repeat-result"
               onClick={() => setShowRepeatModal(true)}
             >
-              <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                <RotateCcw size={26} color="#ffffff" />
-              </div>
               <div className="box-text-wrap">
                 <span className="box-main-title">Repeat Result</span>
                 <span className="box-sub-desc">Repeat past slot results (Single / 2-Digit / Both)</span>
