@@ -956,10 +956,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               }}
             >
               <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
-                <Globe size={24} color="#ffffff" />
+                <Globe size={26} color="#ffffff" />
               </div>
               <div className="box-text-wrap">
-                <span className="box-main-title">🌍 Every City</span>
+                <span className="box-main-title">Every City</span>
                 <span className="box-sub-desc">Buy numbers for ALL {enabledCities.length} cities together</span>
               </div>
             </button>
@@ -970,10 +970,10 @@ export const BillingPage: React.FC<BillingPageProps> = ({
               onClick={() => setShowRepeatModal(true)}
             >
               <div className="box-icon-wrap" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
-                <RotateCcw size={24} color="#ffffff" />
+                <RotateCcw size={26} color="#ffffff" />
               </div>
               <div className="box-text-wrap">
-                <span className="box-main-title">🔁 Repeat Result</span>
+                <span className="box-main-title">Repeat Result</span>
                 <span className="box-sub-desc">Repeat past slot results (Single / 2-Digit / Both)</span>
               </div>
             </button>

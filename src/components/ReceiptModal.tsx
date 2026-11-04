@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Bluetooth, Printer, X, Check, Copy, ShieldAlert, Trophy } from 'lucide-react';
+import { Bluetooth, Printer, X, Check, Copy, ShieldAlert, Trophy, Share2 } from 'lucide-react';
 import type { Bill, PrinterConfig, Result, UserRole } from '../types';
 import { buildReceiptPlainText, printBill, printTestReceipt } from '../utils/printer';
 import { money } from '../utils/helpers';
@@ -111,6 +111,29 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Receipt ${bill.receipt} - LuckyDesk`,
+          text: plainText,
+        });
+      } catch (err: unknown) {
+        // User cancelled or share error
+        if ((err as Error)?.name !== 'AbortError') {
+          handleCopy();
+          setPrintStatus('Receipt copied to clipboard for sharing!');
+          setTimeout(() => setPrintStatus(null), 3500);
+        }
+      }
+    } else {
+      // Fallback: Copy to clipboard and notify
+      handleCopy();
+      setPrintStatus('Receipt text copied! Paste it in your printer or sharing app.');
+      setTimeout(() => setPrintStatus(null), 3500);
+    }
+  };
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card receipt-modal-card" onClick={(e) => e.stopPropagation()}>
@@ -191,7 +214,17 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             onClick={() => handlePrint('browser')}
           >
             <Printer size={16} />
-            <span>Browser Print</span>
+            <span>Browser</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-secondary-print btn-share-print"
+            onClick={handleShare}
+            title="Share receipt to third-party print app or messengers"
+          >
+            <Share2 size={16} />
+            <span>Share</span>
           </button>
 
           <button type="button" className="btn-icon" onClick={handleCopy} title="Copy receipt text">
